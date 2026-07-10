@@ -1,0 +1,43 @@
+# Defense in depth; scripts/agent_guard.py remains the cross-runtime policy.
+
+prefix_rule(
+    pattern = ["git", "push", ["--force", "--force-with-lease", "-f"]],
+    decision = "forbidden",
+    justification = "Force pushes are forbidden; use a normal git push.",
+)
+
+prefix_rule(
+    pattern = ["git", "reset", "--hard"],
+    decision = "forbidden",
+    justification = "Hard resets are destructive.",
+)
+
+prefix_rule(
+    pattern = ["git", "clean", ["-f", "-fd", "-fdx", "-df"]],
+    decision = "forbidden",
+    justification = "Forced git clean is destructive.",
+)
+
+prefix_rule(
+    pattern = ["gh", ["release", "pr"], "create"],
+    decision = "forbidden",
+    justification = "Publication requires explicit authority.",
+)
+
+prefix_rule(
+    pattern = ["poly-data", "push-hf"],
+    decision = "forbidden",
+    justification = "Hugging Face publication requires explicit authority.",
+)
+
+prefix_rule(
+    pattern = ["uv", "run", "poly-data", "push-hf"],
+    decision = "forbidden",
+    justification = "Hugging Face publication requires explicit authority.",
+)
+
+prefix_rule(
+    pattern = [["hf", "huggingface-cli"], "upload"],
+    decision = "forbidden",
+    justification = "Hugging Face publication requires explicit authority.",
+)

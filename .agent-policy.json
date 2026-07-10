@@ -1,0 +1,100 @@
+{
+  "version": 1,
+  "required_files": [
+    ".agent-policy.json",
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".claude/settings.json",
+    ".claude/rules/data-integrity.md",
+    ".codex/config.toml",
+    ".codex/hooks.json",
+    ".codex/agents/explorer.toml",
+    ".codex/agents/reviewer.toml",
+    ".codex/rules/repo.rules",
+    ".github/workflows/ci.yml",
+    ".socraticodecontextartifacts.json",
+    ".socraticodeignore",
+    "scripts/agent_doctor.py",
+    "scripts/agent_guard.py",
+    "tests/test_agent_workflow.py"
+  ],
+  "required_text": {
+    "CLAUDE.md": [
+      "@AGENTS.md"
+    ],
+    "AGENTS.md": [
+      "uv run python scripts/agent_doctor.py",
+      "uv run pytest -q -o addopts='' tests/test_agent_workflow.py",
+      "non-force pushes",
+      "AGENT_POLICY_AMENDMENT=1"
+    ],
+    ".github/workflows/ci.yml": [
+      "uv run python scripts/agent_doctor.py",
+      "uv run pytest -q -o addopts='' tests/test_agent_workflow.py"
+    ]
+  },
+  "mirrors": [],
+  "jsonl_files": [],
+  "forbidden_tracked": [
+    ".coverage",
+    "coverage.xml",
+    ".claude/settings.local.json",
+    ".lean-ctx/graph.db",
+    ".lean-ctx/graph.meta.json"
+  ],
+  "blocked_commands": [
+    {
+      "pattern": "(?:^|\\s)git(?:\\s+-C\\s+(?:\"[^\"]+\"|'[^']+'|\\S+))*\\s+push\\b[^\\n]*(?:--force(?:-with-lease)?(?:=\\S+)?|-f(?:\\s|$)|(?:^|\\s)\\+\\S+)",
+      "reason": "force push is forbidden"
+    },
+    {
+      "pattern": "(?:^|\\s)git(?:\\s+-C\\s+(?:\"[^\"]+\"|'[^']+'|\\S+))*\\s+reset\\s+--hard(?:\\s|$)",
+      "reason": "destructive reset is forbidden"
+    },
+    {
+      "pattern": "(?:^|\\s)git(?:\\s+-C\\s+(?:\"[^\"]+\"|'[^']+'|\\S+))*\\s+clean\\s+[^\\n]*-[^\\n]*f",
+      "reason": "destructive git clean is forbidden"
+    },
+    {
+      "pattern": "(?:^|\\s)(?:rm\\b(?=[^;&|\\n]*\\s-{1,2}[^\\s;&|]*r)(?=[^;&|\\n]*\\s-{1,2}[^\\s;&|]*f)|Remove-Item\\b[^\\n]*(?:-Recurse[^\\n]*-Force|-Force[^\\n]*-Recurse))",
+      "reason": "recursive forced deletion is forbidden"
+    },
+    {
+      "pattern": "(?:^|\\s)(?:gh\\s+(?:release|pr)\\s+create|twine\\s+upload|npm\\s+publish|docker\\s+push)\\b",
+      "reason": "publication requires explicit authority"
+    },
+    {
+      "pattern": "(?:^|[;&|]\\s*)(?:(?:uv\\s+run\\s+)?poly-data\\s+push-hf\\b|(?:uv\\s+run\\s+)?(?:hf|huggingface-cli)\\s+upload\\b|(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)\\s+-m\\s+poly_data\\.cli\\s+push-hf\\b)",
+      "reason": "Hugging Face publication requires explicit authority"
+    },
+    {
+      "pattern": "(?:^|[\\\\/\\s])(?:\\.env|id_rsa|id_ed25519|credentials)(?:$|[\\\\/\\s])",
+      "reason": "secret access is forbidden"
+    }
+  ],
+  "blocked_read_paths": [
+    ".env",
+    ".env.*",
+    "**/.env",
+    "**/.env.*",
+    ".ssh/**",
+    "**/credentials",
+    "**/credentials.*",
+    "**/id_rsa",
+    "**/id_ed25519"
+  ],
+  "protected_paths": [
+    ".agent-policy.json",
+    "AGENTS.md",
+    "CLAUDE.md",
+    ".claude/**",
+    ".codex/**",
+    ".github/workflows/**",
+    ".socraticodecontextartifacts.json",
+    ".socraticodeignore",
+    "scripts/agent_doctor.py",
+    "scripts/agent_guard.py",
+    "tests/test_agent_workflow.py",
+    "data/**"
+  ]
+}

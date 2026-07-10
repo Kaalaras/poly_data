@@ -1,0 +1,21 @@
+approval_policy = "never"
+sandbox_mode = "workspace-write"
+
+[sandbox_workspace_write]
+network_access = true
+
+[features]
+hooks = true
+multi_agent = true
+
+[agents]
+max_threads = 4
+max_depth = 1
+
+[agents.explorer]
+description = "Read-only explorer for data contracts, pipeline flow, and cross-platform behavior."
+config_file = "agents/explorer.toml"
+
+[agents.reviewer]
+description = "Read-only reviewer for data integrity, publication safety, and regressions."
+config_file = "agents/reviewer.toml"

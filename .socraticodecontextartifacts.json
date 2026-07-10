@@ -1,0 +1,14 @@
+{
+  "artifacts": [
+    {
+      "name": "poly-data-v2-design",
+      "path": "docs/superpowers/specs/2026-04-25-poly-data-v2-design.md",
+      "description": "Canonical V2 data-lake architecture, contracts, and command design."
+    },
+    {
+      "name": "poly-data-v2-implementation-plan",
+      "path": "docs/superpowers/plans/2026-04-25-poly-data-v2.md",
+      "description": "Tracked implementation contract for the V2 Parquet pipeline."
+    }
+  ]
+}

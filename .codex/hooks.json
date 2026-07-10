@@ -1,0 +1,18 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|PowerShell|apply_patch|Edit|Write|Read|read_file|view|functions\\.apply_patch|multiedit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$(git rev-parse --show-toplevel)/scripts/agent_guard.py\"",
+            "commandWindows": "python \"$(git rev-parse --show-toplevel)/scripts/agent_guard.py\"",
+            "timeout": 30,
+            "statusMessage": "Checking repository agent policy"
+          }
+        ]
+      }
+    ]
+  }
+}
