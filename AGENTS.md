@@ -39,5 +39,6 @@ Partitioned Parquet pipeline for Polymarket trading data. Cross-platform
 - Policy doctor: `uv run python scripts/agent_doctor.py`
 - Focused policy tests: `uv run pytest -q -o addopts='' tests/test_agent_workflow.py`
 - Ordinary reads, edits, tests, data updates, processing, compaction, commits, and non-force pushes run unattended.
-- Force pushes, destructive cleanup, credential reads, publication, direct `data/**` edits, and `push-hf` are refused.
+- Force pushes, destructive cleanup, credential reads, publication, live API effects,
+  hosted OpenAI/Anthropic access, direct `data/**` edits, and `push-hf` are refused.
 - An authorized protected-policy change must set `AGENT_POLICY_AMENDMENT=1`; ordinary work never needs it.

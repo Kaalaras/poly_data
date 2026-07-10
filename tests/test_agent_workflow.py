@@ -546,6 +546,51 @@ def test_poly_data_policy_allows_non_destructive_git_c_commands() -> None:
 
 
 @pytest.mark.parametrize(
+    "command",
+    [
+        "curl -X POST https://example.com/items",
+        "curl --request=PATCH https://example.com/items/1",
+        "Invoke-RestMethod -Method Delete https://example.com/items/1",
+        (
+            "python -c \"import requests; "
+            "requests.post('https://example.com/items', json={'x': 1})\""
+        ),
+        "gh api --method POST repos/owner/repo/issues",
+        "curl https://api.openai.com/v1/models",
+        "Invoke-RestMethod https://api.anthropic.com/v1/messages",
+        (
+            "python -c \"import requests; "
+            "requests.get('https://api.openai.com/v1/models')\""
+        ),
+        "openai api responses.create",
+        "python -m anthropic messages create",
+    ],
+)
+def test_poly_data_policy_denies_live_api_effects_and_hosted_model_access(
+    command: str,
+) -> None:
+    reason = _real_command_reason(command, tool_name="PowerShell")
+
+    assert reason is not None
+    assert "API" in reason
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "curl https://example.com/health",
+        "Invoke-RestMethod -Method Get https://example.com/status",
+        "python -c \"import requests; requests.get('https://example.com/status')\"",
+        "gh api --method GET repos/owner/repo",
+        "rg -n api.openai.com README.md",
+        "git push origin feature",
+    ],
+)
+def test_poly_data_policy_allows_neutral_network_reads(command: str) -> None:
+    assert _real_command_reason(command, tool_name="PowerShell") is None
+
+
+@pytest.mark.parametrize(
     ("tool_name", "tool_input"),
     [
         ("Edit", {"file_path": "data/orderFilled/year=2024/month=01/month.parquet"}),

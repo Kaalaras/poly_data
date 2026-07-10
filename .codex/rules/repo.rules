@@ -41,3 +41,55 @@ prefix_rule(
     decision = "forbidden",
     justification = "Hugging Face publication requires explicit authority.",
 )
+
+prefix_rule(
+    pattern = ["curl", ["-X", "--request"], ["POST", "PUT", "PATCH", "DELETE"]],
+    decision = "forbidden",
+    justification = "Live API effects require explicit authority.",
+)
+
+prefix_rule(
+    pattern = [
+        "curl",
+        [
+            "-XPOST",
+            "-XPUT",
+            "-XPATCH",
+            "-XDELETE",
+            "--request=POST",
+            "--request=PUT",
+            "--request=PATCH",
+            "--request=DELETE",
+        ],
+    ],
+    decision = "forbidden",
+    justification = "Live API effects require explicit authority.",
+)
+
+prefix_rule(
+    pattern = [
+        ["Invoke-RestMethod", "Invoke-WebRequest"],
+        "-Method",
+        ["POST", "PUT", "PATCH", "DELETE"],
+    ],
+    decision = "forbidden",
+    justification = "Live API effects require explicit authority.",
+)
+
+prefix_rule(
+    pattern = ["gh", "api", ["--method", "-X"], ["POST", "PUT", "PATCH", "DELETE"]],
+    decision = "forbidden",
+    justification = "Live API effects require explicit authority.",
+)
+
+prefix_rule(
+    pattern = [["openai", "anthropic"]],
+    decision = "forbidden",
+    justification = "Hosted API access is forbidden.",
+)
+
+prefix_rule(
+    pattern = [["python", "python3"], "-m", ["openai", "anthropic"]],
+    decision = "forbidden",
+    justification = "Hosted API access is forbidden.",
+)
