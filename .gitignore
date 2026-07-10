@@ -218,3 +218,12 @@ legacy_csv/
 
 # macOS
 .DS_Store
+# Agent credential safety
+.env
+.env.*
+!.env.example
+!.env.*.example
+credentials
+credentials.*
+id_rsa
+id_ed25519

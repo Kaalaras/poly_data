@@ -12,10 +12,12 @@
     ".codex/agents/reviewer.toml",
     ".codex/rules/repo.rules",
     ".github/workflows/ci.yml",
+    ".gitignore",
     ".socraticodecontextartifacts.json",
     ".socraticodeignore",
     "scripts/agent_doctor.py",
     "scripts/agent_guard.py",
+    "tests/test_agent_guard_regressions.py",
     "tests/test_agent_workflow.py"
   ],
   "required_text": {
@@ -26,27 +28,77 @@
       "uv run python scripts/agent_doctor.py",
       "uv run pytest -q -o addopts='' tests/test_agent_workflow.py",
       "non-force pushes",
-      "AGENT_POLICY_AMENDMENT=1"
+      "AGENT_POLICY_AMENDMENT=1",
+      "AGENT_EXTERNAL_EFFECT_AUTHORITY"
+    ],
+    ".claude/rules/data-integrity.md": [
+      "AGENT_POLICY_AMENDMENT=1",
+      "AGENT_EXTERNAL_EFFECT_AUTHORITY"
     ],
     ".github/workflows/ci.yml": [
       "uv run python scripts/agent_doctor.py",
       "uv run pytest -q -o addopts='' tests/test_agent_workflow.py"
+    ],
+    ".gitignore": [
+      ".env.*",
+      "credentials.*"
     ]
   },
   "mirrors": [],
   "jsonl_files": [],
   "forbidden_tracked": [
+    ".env",
+    "**/.env",
+    ".env.local",
+    "**/.env.local",
+    ".env.*",
+    "**/.env.*",
+    "credentials",
+    "**/credentials",
+    "credentials.*",
+    "**/credentials.*",
+    "credentials.json",
+    "**/credentials.json",
+    "id_rsa",
+    "**/id_rsa",
+    "id_ed25519",
+    "**/id_ed25519",
     ".coverage",
     "coverage.xml",
     ".claude/settings.local.json",
     ".lean-ctx/graph.db",
     ".lean-ctx/graph.meta.json"
   ],
+  "forbidden_tracked_exceptions": [
+    ".env.example",
+    "**/.env.example",
+    ".env.*.example",
+    "**/.env.*.example"
+  ],
   "external_effects": {
     "enabled": true,
     "blocked_hosts": [
       "api.openai.com",
       "api.anthropic.com"
+    ],
+    "authority_blocked_hosts": [
+      "api.openai.com",
+      "api.anthropic.com"
+    ],
+    "authority_blocked_clients": [
+      "openai",
+      "anthropic"
+    ],
+    "authority_blocked_tool_patterns": [
+      "openai",
+      "anthropic",
+      "huggingface__upload",
+      "hf__upload"
+    ],
+    "non_authorizable_examples": [
+      "curl https://api.openai.com/v1/models",
+      "openai api responses.create",
+      "poly-data push-hf dataset"
     ]
   },
   "blocked_commands": [
@@ -72,11 +124,8 @@
     },
     {
       "pattern": "(?:^|[;&|]\\s*)(?:(?:uv\\s+run\\s+)?poly-data\\s+push-hf\\b|(?:uv\\s+run\\s+)?(?:hf|huggingface-cli)\\s+upload\\b|(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)\\s+-m\\s+poly_data\\.cli\\s+push-hf\\b)",
-      "reason": "Hugging Face publication requires explicit authority"
-    },
-    {
-      "pattern": "(?:^|[\\\\/\\s\"'])(?:\\.env(?:\\.[^\\\\/\\s\"']+)?|id_rsa|id_ed25519|credentials(?:\\.[^\\\\/\\s\"']+)?)(?:$|[\\\\/\\s\"'])",
-      "reason": "secret access is forbidden"
+      "reason": "Hugging Face publication requires explicit authority",
+      "non_authorizable": true
     }
   ],
   "blocked_read_paths": [
@@ -97,10 +146,12 @@
     ".claude/**",
     ".codex/**",
     ".github/workflows/**",
+    ".gitignore",
     ".socraticodecontextartifacts.json",
     ".socraticodeignore",
     "scripts/agent_doctor.py",
     "scripts/agent_guard.py",
+    "tests/test_agent_guard_regressions.py",
     "tests/test_agent_workflow.py",
     "data/**"
   ]

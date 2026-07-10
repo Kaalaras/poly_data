@@ -30,7 +30,7 @@ jobs:
         run: uv run python scripts/agent_doctor.py
 
       - name: Focused agent policy tests
-        run: uv run pytest -q -o addopts='' tests/test_agent_workflow.py
+        run: uv run pytest -q -o addopts='' tests/test_agent_workflow.py tests/test_agent_guard_regressions.py
 
       - name: Lint
         run: uv run ruff check src tests

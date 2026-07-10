@@ -294,7 +294,7 @@ def test_guard_denies_destructive_secret_and_publication_commands() -> None:
         policy,
         {},
     )
-    assert "publication" in guard.evaluate(
+    assert "forbidden unattended" in guard.evaluate(
         {"tool_name": "Bash", "tool_input": {"command": "gh release create v1"}},
         policy,
         {},
@@ -649,10 +649,44 @@ def test_poly_data_policy_allows_neutral_network_reads(command: str) -> None:
 
 
 def test_poly_data_policy_enables_structured_external_effect_classification() -> None:
-    assert _real_policy()["external_effects"] == {
-        "enabled": True,
-        "blocked_hosts": ["api.openai.com", "api.anthropic.com"],
+    external_effects = _real_policy()["external_effects"]
+
+    assert external_effects["enabled"] is True
+    assert external_effects["blocked_hosts"] == [
+        "api.openai.com",
+        "api.anthropic.com",
+    ]
+    assert external_effects["authority_blocked_hosts"] == external_effects["blocked_hosts"]
+    assert external_effects["authority_blocked_clients"] == ["openai", "anthropic"]
+    assert external_effects["authority_blocked_tool_patterns"] == [
+        "openai",
+        "anthropic",
+        "huggingface__upload",
+        "hf__upload",
+    ]
+
+
+def test_poly_hugging_face_mcp_upload_is_never_authorizable() -> None:
+    guard = _guard()
+    policy = _real_policy()
+    upload = {
+        "tool_name": "mcp__huggingface__upload_dataset",
+        "tool_input": {"repo_id": "org/dataset"},
     }
+    download = {
+        "tool_name": "mcp__huggingface__download_model",
+        "tool_input": {"repo_id": "org/model"},
+    }
+
+    upload_authority = {
+        "AGENT_EXTERNAL_EFFECT_AUTHORITY": guard.external_authority_for_payload(upload)
+    }
+    download_authority = {
+        "AGENT_EXTERNAL_EFFECT_AUTHORITY": guard.external_authority_for_payload(download)
+    }
+    assert guard.evaluate(upload, policy, upload_authority) is not None
+    assert guard.evaluate(download, policy, {}) is not None
+    assert guard.evaluate(download, policy, download_authority) is None
 
 
 @pytest.mark.parametrize(
@@ -741,16 +775,14 @@ def test_poly_data_agent_adapters_are_autonomous_and_bounded() -> None:
     assert "bypasspermissions" not in claude_text.lower()
     assert '"ask"' not in claude_text.lower()
     hook_matchers = {entry["matcher"] for entry in claude["hooks"]["PreToolUse"]}
-    assert any("Bash" in matcher and "PowerShell" in matcher for matcher in hook_matchers)
-    assert any("Edit" in matcher and "Write" in matcher for matcher in hook_matchers)
-    assert any("Read" in matcher for matcher in hook_matchers)
+    assert hook_matchers == {"*"}
     claude_hook = claude["hooks"]["PreToolUse"][0]["hooks"][0]
     assert claude_hook["command"] == "python"
     assert claude_hook["args"] == ["${CLAUDE_PROJECT_DIR}/scripts/agent_guard.py"]
 
     codex_hooks = json.loads((REPO_ROOT / ".codex" / "hooks.json").read_text(encoding="utf-8"))
     codex_hook_entry = codex_hooks["hooks"]["PreToolUse"][0]
-    assert "PowerShell" in codex_hook_entry["matcher"]
+    assert codex_hook_entry["matcher"] == "*"
     codex_hook = codex_hook_entry["hooks"][0]
     assert "git rev-parse --show-toplevel" in codex_hook["command"]
     assert "git rev-parse --show-toplevel" in codex_hook["commandWindows"]

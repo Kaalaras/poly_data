@@ -38,7 +38,18 @@ Partitioned Parquet pipeline for Polymarket trading data. Cross-platform
 ## Agent workflow
 - Policy doctor: `uv run python scripts/agent_doctor.py`
 - Focused policy tests: `uv run pytest -q -o addopts='' tests/test_agent_workflow.py`
+- Common guard regressions: `uv run pytest -q -o addopts='' tests/test_agent_guard_regressions.py`
 - Ordinary reads, edits, tests, data updates, processing, compaction, commits, and non-force pushes run unattended.
 - Force pushes, destructive cleanup, credential reads, publication, live API effects,
   hosted OpenAI/Anthropic access, direct `data/**` edits, and `push-hf` are refused.
 - An authorized protected-policy change must set `AGENT_POLICY_AMENDMENT=1`; ordinary work never needs it.
+- Only an exact remote/API mutation explicitly authorized by the current user may
+  set `AGENT_EXTERNAL_EFFECT_AUTHORITY` to the token printed by `python
+  scripts/agent_guard.py --print-command-authority "<command>"`. The token authorizes
+  no other command and never permits force pushes, secret reads, destructive cleanup,
+  publication, or protected-path edits.
+- For an MCP/app mutation, pipe the exact hook payload JSON into `python
+  scripts/agent_guard.py --print-payload-authority`; PowerShell BOM/UTF-16 input is accepted.
+- Trust changed Codex project hooks once through `/hooks`; vetted unattended CLI
+  launches may use `--dangerously-bypass-hook-trust`. `PreToolUse` remains defense
+  in depth because Codex does not yet intercept every `unified_exec` path.

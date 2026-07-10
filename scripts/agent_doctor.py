@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import fnmatch
 import json
 import subprocess
 import sys
@@ -178,13 +179,31 @@ def validate_repository(root: Path, policy_path: Path | None = None) -> list[str
     if git_error:
         errors.append(git_error)
     else:
+        exception_patterns: list[str] = []
+        for relative in _configured_list(
+            policy, "forbidden_tracked_exceptions", errors
+        ):
+            if not isinstance(relative, str):
+                errors.append(f"invalid forbidden tracked exception: {relative!r}")
+                continue
+            exception_patterns.append(relative.replace("\\", "/").casefold())
         for relative in _configured_list(policy, "forbidden_tracked", errors):
             if not isinstance(relative, str):
                 errors.append(f"invalid forbidden tracked path: {relative!r}")
                 continue
-            normalized = relative.replace("\\", "/")
-            if normalized in tracked:
-                errors.append(f"forbidden tracked artifact: {normalized}")
+            normalized = relative.replace("\\", "/").casefold()
+            matches = sorted(
+                tracked_path
+                for tracked_path in tracked
+                if fnmatch.fnmatchcase(tracked_path.casefold(), normalized)
+            )
+            for tracked_path in matches:
+                if any(
+                    fnmatch.fnmatchcase(tracked_path.casefold(), exception)
+                    for exception in exception_patterns
+                ):
+                    continue
+                errors.append(f"forbidden tracked artifact: {tracked_path}")
 
     return errors
 
