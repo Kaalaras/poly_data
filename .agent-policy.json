@@ -28,7 +28,7 @@
           "Use only current source paths and CLI commands.",
           "Preserve raw data, stable IDs, cursor monotonicity, UTC partitions, and idempotence.",
           "Test the affected stages with an isolated data root and invariant-focused cases.",
-          "Never run push-hf without explicit authority for that publication."
+          "Treat push-hf as non-authorizable here; use mocks and an operator handoff, never execute it."
         ]
       }
     }

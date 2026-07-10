@@ -40,7 +40,8 @@ For a cross-stage change, run a fixture through ingest, process, scan, compact,
 and rescan; compare row counts, IDs, partitions, and normalized values before
 and after. Use an isolated data root and never mutate repository `data/**`.
 
-`push-hf` is a public external effect. Test its adapter with mocks, and run the
-real command only when the current user explicitly authorizes that exact
-publication. Report any migration or backfill requirement separately instead of
-silently rewriting existing data.
+`push-hf` is a public external effect that this repository policy marks
+non-authorizable. Test its adapter with mocks and prepare an explicit operator
+handoff; never execute the real command from an agent session. Report any
+migration or backfill requirement separately instead of silently rewriting
+existing data.

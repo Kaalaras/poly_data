@@ -211,6 +211,30 @@ def test_poly_skill_portfolio_rejects_incomplete_evals(repo: Path) -> None:
     assert any("missing skills.evals entry" in error for error in errors)
 
 
+def test_poly_skill_portfolio_requires_external_provenance(repo: Path) -> None:
+    _write_poly_skill_pair(repo)
+    external = {
+        "kind": "repository-derived-with-external-patterns",
+        "source": "https://example.test/property-testing",
+        "revision": "abc123",
+        "adaptation": "Repository-specific guidance; no source text copied.",
+    }
+    policy_path = _write_policy(
+        repo,
+        skills=_poly_skills_policy(
+            provenance={"poly-data-pipeline-change": external}
+        ),
+    )
+
+    errors = _doctor().validate_repository(repo, policy_path)
+
+    assert any(
+        "skills.provenance['poly-data-pipeline-change'].license must be a non-empty string"
+        in error
+        for error in errors
+    )
+
+
 def test_doctor_reports_missing_required_file(repo: Path) -> None:
     policy_path = _write_policy(repo, required_files=["AGENTS.md", "missing.md"])
 

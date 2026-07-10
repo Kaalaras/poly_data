@@ -382,6 +382,15 @@ def _validate_provenance(
             errors.append(
                 f"skills.provenance[{name!r}].kind must be a non-empty string"
             )
+            continue
+        if "external" in kind.casefold():
+            for field in ("source", "revision", "license", "adaptation"):
+                value = entry.get(field)
+                if not isinstance(value, str) or not value.strip():
+                    errors.append(
+                        f"skills.provenance[{name!r}].{field} must be a "
+                        "non-empty string"
+                    )
 
 
 def _validate_evals(
@@ -463,6 +472,30 @@ def _validate_skills(
             errors.append(
                 f"unexpected canonical skill {name!r}: "
                 f"{_skill_path_label(root, canonical_files[name])}"
+            )
+
+    if mirror_root is not None:
+        try:
+            mirror_candidates = sorted(
+                mirror_root.glob("*/SKILL.md"), key=lambda path: path.parent.name
+            )
+        except OSError as exc:
+            errors.append(
+                f"cannot discover skill mirrors at "
+                f"{_skill_path_label(root, mirror_root)}: {exc}"
+            )
+            mirror_candidates = []
+        mirror_names = {
+            path.parent.name
+            for path in mirror_candidates
+            if path.is_file() and _has_exact_filename(path)
+        }
+        mirror_only = mirror_names - set(canonical_files) - portfolio_names
+        for name in sorted(mirror_only):
+            path = mirror_root / name / "SKILL.md"
+            errors.append(
+                f"unexpected mirror-only skill {name!r}: "
+                f"{_skill_path_label(root, path)}"
             )
 
     descriptions: dict[str, str] = {}
