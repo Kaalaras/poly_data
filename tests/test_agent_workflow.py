@@ -117,6 +117,47 @@ def _write_policy(repo: Path, **overrides: object) -> Path:
     return path
 
 
+def _write_poly_skill_pair(
+    repo: Path,
+    *,
+    description: str = "Use when changing the Poly data pipeline.",
+) -> None:
+    content = (
+        "---\n"
+        "name: poly-data-pipeline-change\n"
+        f"description: {description}\n"
+        "---\n\n"
+        "# Change the data pipeline\n\nPreserve raw data and idempotence.\n"
+    )
+    for root in (".agents/skills", ".claude/skills"):
+        path = repo / root / "poly-data-pipeline-change" / "SKILL.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(content, encoding="utf-8")
+
+
+def _poly_skills_policy(**overrides: object) -> dict[str, object]:
+    policy: dict[str, object] = {
+        "canonical_root": ".agents/skills",
+        "mirror_root": ".claude/skills",
+        "portfolio": ["poly-data-pipeline-change"],
+        "max_count": 6,
+        "max_description_chars": 240,
+        "max_catalog_chars": 1500,
+        "max_body_words": 500,
+        "provenance": {"poly-data-pipeline-change": {"kind": "repository-derived"}},
+        "evals": {
+            "poly-data-pipeline-change": {
+                "direct": "Change orderFilled normalization.",
+                "natural": "Refais le pipeline de trades.",
+                "neighbor": "Edit a plotting color.",
+                "assertions": ["Use only current pipeline paths and CLI commands."],
+            }
+        },
+    }
+    policy.update(overrides)
+    return policy
+
+
 def _doctor() -> ModuleType:
     return _load_script("scripts/agent_doctor.py", "agent_doctor_under_test")
 
@@ -129,6 +170,45 @@ def test_doctor_accepts_valid_repository(repo: Path) -> None:
     policy_path = _write_policy(repo)
 
     assert _doctor().validate_repository(repo, policy_path) == []
+
+
+def test_poly_skill_portfolio_contract_is_valid() -> None:
+    policy = json.loads((REPO_ROOT / ".agent-policy.json").read_text(encoding="utf-8"))
+
+    assert policy["skills"]["portfolio"] == ["poly-data-pipeline-change"]
+    assert _doctor().validate_repository(REPO_ROOT) == []
+
+
+def test_poly_skill_portfolio_rejects_mirror_drift(repo: Path) -> None:
+    _write_poly_skill_pair(repo)
+    mirror = repo / ".claude" / "skills" / "poly-data-pipeline-change" / "SKILL.md"
+    mirror.write_text(mirror.read_text(encoding="utf-8") + "drift\n", encoding="utf-8")
+    policy_path = _write_policy(repo, skills=_poly_skills_policy())
+
+    errors = _doctor().validate_repository(repo, policy_path)
+
+    assert any("skill mirror drift" in error for error in errors)
+
+
+def test_poly_skill_portfolio_rejects_description_overflow(repo: Path) -> None:
+    _write_poly_skill_pair(repo, description="Use when " + "x" * 80)
+    policy_path = _write_policy(
+        repo,
+        skills=_poly_skills_policy(max_description_chars=40),
+    )
+
+    errors = _doctor().validate_repository(repo, policy_path)
+
+    assert any("skills.max_description_chars 40" in error for error in errors)
+
+
+def test_poly_skill_portfolio_rejects_incomplete_evals(repo: Path) -> None:
+    _write_poly_skill_pair(repo)
+    policy_path = _write_policy(repo, skills=_poly_skills_policy(evals={}))
+
+    errors = _doctor().validate_repository(repo, policy_path)
+
+    assert any("missing skills.evals entry" in error for error in errors)
 
 
 def test_doctor_reports_missing_required_file(repo: Path) -> None:
@@ -849,3 +929,33 @@ def test_poly_data_agents_document_focused_and_autonomous_workflow() -> None:
     assert "non-force pushes" in agents
     assert "AGENT_POLICY_AMENDMENT=1" in agents
     assert "@AGENTS.md" in claude
+
+
+def test_poly_data_agents_describe_only_current_pipeline_authority() -> None:
+    agents = (REPO_ROOT / "AGENTS.md").read_text(encoding="utf-8")
+
+    for command in (
+        "update-markets",
+        "update-goldsky",
+        "process",
+        "compact",
+        "push-hf",
+        "update-all",
+    ):
+        assert command in agents
+    for stale in (
+        "import-ponder-v2",
+        "v2-status",
+        "docs/polymarket_v2.md",
+        "order_filled_v2",
+        "src/poly_data/contracts/",
+        "tests/test_data_contracts.py",
+    ):
+        assert stale not in agents
+    for authority in (
+        "src/poly_data/ingest/",
+        "src/poly_data/process/trades.py",
+        "src/poly_data/io/parquet_store.py",
+        "orderFilled",
+    ):
+        assert authority in agents

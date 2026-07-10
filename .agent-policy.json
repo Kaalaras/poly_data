@@ -1,10 +1,45 @@
 {
   "version": 1,
+  "skills": {
+    "canonical_root": ".agents/skills",
+    "mirror_root": ".claude/skills",
+    "portfolio": [
+      "poly-data-pipeline-change"
+    ],
+    "max_count": 6,
+    "max_description_chars": 240,
+    "max_catalog_chars": 1500,
+    "max_body_words": 500,
+    "provenance": {
+      "poly-data-pipeline-change": {
+        "kind": "repository-derived-with-external-patterns",
+        "source": "https://github.com/trailofbits/skills/tree/cfe5d7b1619e47fb5b38b7e2561dad7e5f1e89af/plugins/property-based-testing",
+        "revision": "cfe5d7b1619e47fb5b38b7e2561dad7e5f1e89af",
+        "license": "CC-BY-SA-4.0",
+        "adaptation": "Repository-specific invariant and generative-test guidance; no source text copied."
+      }
+    },
+    "evals": {
+      "poly-data-pipeline-change": {
+        "direct": "Change orderFilled normalization while preserving replay safety.",
+        "natural": "Peux-tu fiabiliser le pipeline de trades sur les doublons et les fins de mois ?",
+        "neighbor": "Change a chart color in backtrader_plotting without touching the data pipeline.",
+        "assertions": [
+          "Use only current source paths and CLI commands.",
+          "Preserve raw data, stable IDs, cursor monotonicity, UTC partitions, and idempotence.",
+          "Test the affected stages with an isolated data root and invariant-focused cases.",
+          "Never run push-hf without explicit authority for that publication."
+        ]
+      }
+    }
+  },
   "required_files": [
     ".agent-policy.json",
+    ".agents/skills/poly-data-pipeline-change/SKILL.md",
     "AGENTS.md",
     "CLAUDE.md",
     ".claude/settings.json",
+    ".claude/skills/poly-data-pipeline-change/SKILL.md",
     ".claude/rules/data-integrity.md",
     ".codex/config.toml",
     ".codex/hooks.json",
@@ -29,7 +64,11 @@
       "uv run pytest -q -o addopts='' tests/test_agent_workflow.py",
       "non-force pushes",
       "AGENT_POLICY_AMENDMENT=1",
-      "AGENT_EXTERNAL_EFFECT_AUTHORITY"
+      "AGENT_EXTERNAL_EFFECT_AUTHORITY",
+      "src/poly_data/ingest/",
+      "src/poly_data/process/trades.py",
+      "src/poly_data/io/parquet_store.py",
+      "orderFilled"
     ],
     ".claude/rules/data-integrity.md": [
       "AGENT_POLICY_AMENDMENT=1",
@@ -44,7 +83,14 @@
       "credentials.*"
     ]
   },
-  "mirrors": [],
+  "mirrors": [
+    {
+      "source": ".agents/skills/poly-data-pipeline-change/SKILL.md",
+      "targets": [
+        ".claude/skills/poly-data-pipeline-change/SKILL.md"
+      ]
+    }
+  ],
   "jsonl_files": [],
   "forbidden_tracked": [
     ".env",
@@ -143,6 +189,7 @@
     ".agent-policy.json",
     "AGENTS.md",
     "CLAUDE.md",
+    ".agents/skills/**",
     ".claude/**",
     ".codex/**",
     ".github/workflows/**",

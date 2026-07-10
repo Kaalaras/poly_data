@@ -8,20 +8,24 @@ Partitioned Parquet pipeline for Polymarket trading data. Cross-platform
 - Tests: `uv run pytest tests -x` (no custom marker tiers beyond built-in
   `parametrize`/`skipif`; `pyproject.toml` sets `testpaths=tests`, `addopts=-ra`
   — this one command covers the whole suite).
-- CLI: `uv run poly-data <subcommand>` — see README table; key ones:
-  `update-all`, `import-ponder-v2`, `process`, `v2-status`, `compact`, `push-hf`.
-- Canonical V2 pipeline doc: `docs/polymarket_v2.md` — read before touching ingest.
+- CLI: `uv run poly-data <subcommand>` — current commands are
+  `update-markets`, `update-goldsky`, `process`, `compact`, `push-hf`, and
+  `update-all`.
+- Current implementation authority is `src/poly_data/ingest/` →
+  `src/poly_data/process/trades.py` → `src/poly_data/io/parquet_store.py`, with
+  compaction in `src/poly_data/compact/monthly.py`. Inspect those files and
+  their focused tests before changing the pipeline.
 
 ## Data invariants
 - Layout is a contract: `data/<source>/year=YYYY/month=MM/{run-*.parquet,month.parquet}`,
   hive-partitioned. Never restructure or hand-edit files under `data/`.
 - Deduplication/compaction happens ONLY through `poly-data compact`; never
   rewrite `month.parquet` ad hoc.
-- `order_filled_v2` is canonical; `orderFilled` (V1) is read-only legacy.
-  Legacy CSVs are kept until the user verifies migration — never delete them.
-- Schema changes go through `src/poly_data/contracts/` and
-  `tests/test_data_contracts.py` first; downstream (`process/`, `analysis/`)
-  adapts to the contract, not the other way around.
+- `orderFilled` is the canonical raw event source. Keep raw input append-only;
+  validate schema and normalization changes against the current ingest,
+  processing, store, compaction, and CLI tests.
+- Preserve cursor monotonicity, stable IDs, UTC year/month partitions,
+  idempotent reruns, source separation, and compaction deduplication.
 
 ## Secrets & external effects
 - `HF_TOKEN`, `POLYGON_RPC_URL`: never print, log, or commit.
