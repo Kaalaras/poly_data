@@ -68,15 +68,19 @@
       "reason": "Hugging Face publication requires explicit authority"
     },
     {
-      "pattern": "(?:^|[;&|]\\s*)(?:(?:curl(?:\\.exe)?|wget)\\b[^\\n]*(?:(?:-X|--request|--method)(?:=|\\s*)(?:POST|PUT|PATCH|DELETE)\\b)|Invoke-(?:RestMethod|WebRequest)\\b[^\\n]*-Method(?:=|\\s+)(?:POST|PUT|PATCH|DELETE)\\b|gh\\s+api\\b[^\\n]*(?:(?:--method|-X)(?:=|\\s*)(?:POST|PUT|PATCH|DELETE)\\b)|(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?))\\b[^\\n]*(?:requests|httpx)\\s*\\.\\s*(?:post|put|patch|delete)\\s*\\()",
+      "pattern": "(?:^|[;&|]\\s*)(?:(?:curl(?:\\.exe)?|wget)\\b[^\\n]*(?:(?:-X|--request|--method)(?:=|\\s*)(?:POST|PUT|PATCH|DELETE)\\b|(?:-d|--data(?:-[a-z-]+)?|-F|--form|--upload-file|-T|--post-data|--post-file)(?:=|\\s+))|(?:Invoke-RestMethod|Invoke-WebRequest|irm|iwr)\\b[^\\n]*-Method(?:=|\\s+)(?:POST|PUT|PATCH|DELETE)\\b|Start-BitsTransfer\\b[^\\n]*-TransferType(?:=|\\s+)Upload\\b|\\[[^]\\n]*(?:HttpClient|WebClient)[^]\\n]*\\][^\\n]*\\.(?:PostAsync|PutAsync|PatchAsync|DeleteAsync|Upload\\w*)\\s*\\(|gh\\s+api\\b[^\\n]*(?:(?:--method|-X)(?:=|\\s*)(?:POST|PUT|PATCH|DELETE)\\b)|(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?))\\b[^\\n]*(?:requests|httpx)[^\\n]*\\.(?:post|put|patch|delete)\\s*\\()",
       "reason": "live API effects require explicit authority"
     },
     {
-      "pattern": "(?:^|[;&|]\\s*)(?:(?:uv\\s+run\\s+)?(?:openai|anthropic)(?:\\s|$)|(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)\\s+-m\\s+(?:openai|anthropic)\\b|(?:curl(?:\\.exe)?|wget|Invoke-RestMethod|Invoke-WebRequest|http)\\b[^\\n]*api\\.(?:openai|anthropic)\\.com\\b|(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?))\\b[^\\n]*api\\.(?:openai|anthropic)\\.com\\b)",
+      "pattern": "(?:^|[;&|]\\s*)(?:(?:uv\\s+run\\s+)?(?:openai|anthropic)(?:\\s|$)|(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)\\s+-m\\s+(?:openai|anthropic)\\b)|(?:(?:curl(?:\\.exe)?|wget|Invoke-RestMethod|Invoke-WebRequest|irm|iwr|Start-BitsTransfer|http)\\b|\\[?(?:System\\.)?Net\\.(?:Http\\.HttpClient|WebClient)\\]?|(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)|node|deno|bun)\\b)[^\\n]*api\\.(?:openai|anthropic)\\.com\\b",
       "reason": "hosted API access is forbidden"
     },
     {
-      "pattern": "(?:^|[\\\\/\\s])(?:\\.env|id_rsa|id_ed25519|credentials)(?:$|[\\\\/\\s])",
+      "pattern": "(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)|node|deno|bun)\\b[^\\n]*(?:openai|anthropic)[^\\n]*(?:responses|chat\\.completions|completions|messages)\\.(?:create|stream)\\s*\\(",
+      "reason": "hosted API access is forbidden"
+    },
+    {
+      "pattern": "(?:^|[\\\\/\\s\"'])(?:\\.env(?:\\.[^\\\\/\\s\"']+)?|id_rsa|id_ed25519|credentials(?:\\.[^\\\\/\\s\"']+)?)(?:$|[\\\\/\\s\"'])",
       "reason": "secret access is forbidden"
     }
   ],

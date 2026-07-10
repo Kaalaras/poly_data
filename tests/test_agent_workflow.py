@@ -564,6 +564,9 @@ def test_poly_data_policy_allows_non_destructive_git_c_commands() -> None:
         ),
         "openai api responses.create",
         "python -m anthropic messages create",
+        "[System.Net.Http.HttpClient]::new().PostAsync('https://example.com/api/items', $null)",
+        "Start-BitsTransfer -TransferType Upload -Source data.json -Destination https://example.com/api/items",
+        "python -c \"from openai import OpenAI; OpenAI().responses.create(model='gpt-5', input='hi')\"",
     ],
 )
 def test_poly_data_policy_denies_live_api_effects_and_hosted_model_access(
@@ -573,6 +576,20 @@ def test_poly_data_policy_denies_live_api_effects_and_hosted_model_access(
 
     assert reason is not None
     assert "API" in reason
+
+
+@pytest.mark.parametrize(
+    "command",
+    [
+        "Get-Content .env.local",
+        "Get-Content config/credentials.json",
+    ],
+)
+def test_poly_data_policy_denies_secret_suffixes(command: str) -> None:
+    reason = _real_command_reason(command, tool_name="PowerShell")
+
+    assert reason is not None
+    assert "secret" in reason
 
 
 @pytest.mark.parametrize(
