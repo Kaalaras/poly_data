@@ -567,6 +567,16 @@ def test_poly_data_policy_allows_non_destructive_git_c_commands() -> None:
         "[System.Net.Http.HttpClient]::new().PostAsync('https://example.com/api/items', $null)",
         "Start-BitsTransfer -TransferType Upload -Source data.json -Destination https://example.com/api/items",
         "python -c \"from openai import OpenAI; OpenAI().responses.create(model='gpt-5', input='hi')\"",
+        "curl -XPOST https://example.com/api/items",
+        "curl --json '{\"x\": 1}' https://example.com/api/items",
+        "curl -dname=test https://example.com/api/items",
+        "Invoke-RestMethod -Method 'Delete' https://example.com/api/items",
+        "$client = [System.Net.Http.HttpClient]::new()\n$client.PostAsync('https://example.com/api/items', $null)",
+        "$client.SendAsync($request)",
+        "python -c \"import requests; requests.request('POST', 'https://example.com/api/items')\"",
+        "python -c \"import urllib.request; urllib.request.urlopen('https://example.com/api/items', data=b'x')\"",
+        "node -e \"fetch('https://example.com/api/items', {method: 'POST'})\"",
+        "curl \\\n  -X POST \\\n  https://example.com/api/items",
     ],
 )
 def test_poly_data_policy_denies_live_api_effects_and_hosted_model_access(
@@ -601,6 +611,12 @@ def test_poly_data_policy_denies_secret_suffixes(command: str) -> None:
         "gh api --method GET repos/owner/repo",
         "rg -n api.openai.com README.md",
         "git push origin feature",
+        "python -c \"print('api.openai.com')\"",
+        "node -e \"console.log('api.openai.com')\"",
+        "rg \"curl.*api.openai.com\" docs",
+        "python -c \"import requests; requests.get('https://example.com/status')\"",
+        "node -e \"fetch('https://example.com/status')\"",
+        "$client = [System.Net.Http.HttpClient]::new(); $client.GetAsync('https://example.com/status')",
     ],
 )
 def test_poly_data_policy_allows_neutral_network_reads(command: str) -> None:

@@ -68,15 +68,27 @@
       "reason": "Hugging Face publication requires explicit authority"
     },
     {
-      "pattern": "(?:^|[;&|]\\s*)(?:(?:curl(?:\\.exe)?|wget)\\b[^\\n]*(?:(?:-X|--request|--method)(?:=|\\s*)(?:POST|PUT|PATCH|DELETE)\\b|(?:-d|--data(?:-[a-z-]+)?|-F|--form|--upload-file|-T|--post-data|--post-file)(?:=|\\s+))|(?:Invoke-RestMethod|Invoke-WebRequest|irm|iwr)\\b[^\\n]*-Method(?:=|\\s+)(?:POST|PUT|PATCH|DELETE)\\b|Start-BitsTransfer\\b[^\\n]*-TransferType(?:=|\\s+)Upload\\b|\\[[^]\\n]*(?:HttpClient|WebClient)[^]\\n]*\\][^\\n]*\\.(?:PostAsync|PutAsync|PatchAsync|DeleteAsync|Upload\\w*)\\s*\\(|gh\\s+api\\b[^\\n]*(?:(?:--method|-X)(?:=|\\s*)(?:POST|PUT|PATCH|DELETE)\\b)|(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?))\\b[^\\n]*(?:requests|httpx)[^\\n]*\\.(?:post|put|patch|delete)\\s*\\()",
+      "pattern": "(?:^|[;&|]\\s*)(?:(?:curl(?:\\.exe)?|wget)\\b[^;&|]*(?:(?:(?-i:-X)|--request|--method)(?:=|\\s*)[\"']?(?:POST|PUT|PATCH|DELETE)\\b[\"']?|(?:(?-i:-d|-F|-T)|--data(?:-[a-z-]+)?|--form|--json|--upload-file|--post-data|--post-file)(?:=|\\s*)?)|(?:Invoke-WebRequest|Invoke-RestMethod|iwr|irm|curl)\\b[^;&|]*-Method(?:=|\\s+)[\"']?(?:POST|PUT|PATCH|DELETE)\\b[\"']?|Start-BitsTransfer\\b[^;&|]*-TransferType(?:=|\\s+)[\"']?Upload\\b[\"']?|gh\\s+api\\b[^;&|]*(?:--method|-X)(?:=|\\s*)[\"']?(?:POST|PUT|PATCH|DELETE)\\b[\"']?)",
       "reason": "live API effects require explicit authority"
     },
     {
-      "pattern": "(?:^|[;&|]\\s*)(?:(?:uv\\s+run\\s+)?(?:openai|anthropic)(?:\\s|$)|(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)\\s+-m\\s+(?:openai|anthropic)\\b)|(?:(?:curl(?:\\.exe)?|wget|Invoke-RestMethod|Invoke-WebRequest|irm|iwr|Start-BitsTransfer|http)\\b|\\[?(?:System\\.)?Net\\.(?:Http\\.HttpClient|WebClient)\\]?|(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)|node|deno|bun)\\b)[^\\n]*api\\.(?:openai|anthropic)\\.com\\b",
+      "pattern": "(?:^|[;&|]\\s*)(?:(?:\\$\\w+\\s*=\\s*)?\\[[^\\n]*(?:HttpClient|WebClient|HttpRequestMessage|HttpWebRequest)[^\\n]*\\][\\s\\S]*?)?(?:\\$\\w+\\.)?(?:PostAsync|PutAsync|PatchAsync|DeleteAsync|SendAsync|Upload\\w*)\\s*\\(",
+      "reason": "live API effects require explicit authority"
+    },
+    {
+      "pattern": "(?:^|[;&|]\\s*)(?:(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?))\\b[\\s\\S]*?(?:(?:requests|httpx)[\\s\\S]*?\\.(?:post|put|patch|delete)\\s*\\(|(?:requests|httpx)[\\s\\S]*?\\.request\\s*\\(\\s*[\"'](?:POST|PUT|PATCH|DELETE)\\b|urllib[\\s\\S]*?(?:Request|urlopen)\\s*\\([\\s\\S]*?(?:\\bdata\\s*=|\\bmethod\\s*=\\s*[\"'](?:POST|PUT|PATCH|DELETE)\\b))|(?:node|deno|bun)\\b[\\s\\S]*?\\bfetch\\s*\\([\\s\\S]*?\\bmethod\\s*:\\s*[\"'](?:POST|PUT|PATCH|DELETE)\\b)",
+      "reason": "live API effects require explicit authority"
+    },
+    {
+      "pattern": "(?:^|[;&|]\\s*)(?:(?:uv\\s+run\\s+)?(?:openai|anthropic)(?:\\s|$)|(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)\\s+-m\\s+(?:openai|anthropic)\\b)",
       "reason": "hosted API access is forbidden"
     },
     {
-      "pattern": "(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)|node|deno|bun)\\b[^\\n]*(?:openai|anthropic)[^\\n]*(?:responses|chat\\.completions|completions|messages)\\.(?:create|stream)\\s*\\(",
+      "pattern": "(?:^|[;&|]\\s*)(?:(?:Invoke-WebRequest|Invoke-RestMethod|iwr|irm|Start-BitsTransfer|curl(?:\\.exe)?|wget|http)\\b[^;&|]*api\\.(?:openai|anthropic)\\.com|(?:\\$\\w+\\s*=\\s*)?\\[[^\\n]*(?:HttpClient|WebClient|HttpWebRequest)[^\\n]*\\][^;&|]*api\\.(?:openai|anthropic)\\.com|\\$\\w+\\.(?:GetAsync|PostAsync|PutAsync|PatchAsync|DeleteAsync|SendAsync)\\s*\\([^;&|]*api\\.(?:openai|anthropic)\\.com|(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?))\\b(?=[^\\n]*(?:requests|httpx|urllib|socket))(?=[^\\n]*api\\.(?:openai|anthropic)\\.com)[^\\n]*|(?:node|deno|bun)\\b(?=[^\\n]*(?:fetch|https?\\.(?:request|get)))(?=[^\\n]*api\\.(?:openai|anthropic)\\.com)[^\\n]*)",
+      "reason": "hosted API access is forbidden"
+    },
+    {
+      "pattern": "(?:^|[;&|]\\s*)(?:(?:uv\\s+run\\s+)?(?:python(?:3)?|py(?:\\s+-3(?:\\.\\d+)?)?)|node|deno|bun)\\b[^\\n]*(?:openai|anthropic)[^\\n]*(?:responses|chat\\.completions|completions|messages)\\.(?:create|stream)\\s*\\(",
       "reason": "hosted API access is forbidden"
     },
     {
