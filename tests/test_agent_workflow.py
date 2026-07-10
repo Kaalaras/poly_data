@@ -250,6 +250,8 @@ def test_repository_policy_closes_force_push_and_recursive_delete_bypasses() -> 
 
     for command in (
         "git -C . push --force origin main",
+        "git push origin main --force",
+        "git push origin main --force-with-lease",
         "git push origin +main",
         "rm -r -f build",
     ):
@@ -268,6 +270,14 @@ def test_repository_policy_closes_force_push_and_recursive_delete_bypasses() -> 
         policy,
         {},
     ) is None
+
+
+def test_poly_data_codex_rules_do_not_broadly_allow_every_git_push() -> None:
+    rules = (REPO_ROOT / ".codex" / "rules" / "repo.rules").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'pattern = ["git", "push"],' not in rules
 
 
 def test_guard_denies_destructive_secret_and_publication_commands() -> None:
