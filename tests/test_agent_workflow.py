@@ -577,6 +577,16 @@ def test_poly_data_policy_allows_non_destructive_git_c_commands() -> None:
         "python -c \"import urllib.request; urllib.request.urlopen('https://example.com/api/items', data=b'x')\"",
         "node -e \"fetch('https://example.com/api/items', {method: 'POST'})\"",
         "curl \\\n  -X POST \\\n  https://example.com/api/items",
+        "Write-Output ready\ncurl -X POST https://example.com/api/items",
+        "echo ready\npython -c \"import requests; requests.post('https://example.com/api/items')\"",
+        "python -c \"import requests; requests.request(method='POST', url='https://example.com/api/items')\"",
+        "python -c \"import httpx; httpx.request(method='DELETE', url='https://example.com/api/items')\"",
+        "python -c \"import urllib.request; urllib.request.urlopen(urllib.request.Request('https://example.com/api/items', method='POST'))\"",
+        "node -e \"fetch('https://example.com/api/items', {'method': 'POST'})\"",
+        "python -c \"from openai import OpenAI\nclient = OpenAI()\nclient.responses.create(model='gpt-5', input='hi')\"",
+        "Invoke-RestMethod -Me Delete https://example.com/api/items",
+        "gh api graphql -f query='mutation { createIssue(input: {}) { id } }'",
+        "python3.12 -c \"import requests; requests.post('https://example.com/api/items')\"",
     ],
 )
 def test_poly_data_policy_denies_live_api_effects_and_hosted_model_access(
@@ -617,10 +627,22 @@ def test_poly_data_policy_denies_secret_suffixes(command: str) -> None:
         "python -c \"import requests; requests.get('https://example.com/status')\"",
         "node -e \"fetch('https://example.com/status')\"",
         "$client = [System.Net.Http.HttpClient]::new(); $client.GetAsync('https://example.com/status')",
+        "curl -G -dname=test https://example.com/search",
+        "curl --get --data name=test https://example.com/search",
+        "python -c \"print('requests.post(\\\"https://example.com/api/items\\\")')\"",
+        "gh api graphql -f query='query { repository(owner: \"x\", name: \"mutation\") { id } }'",
+        "python3.12 -c \"print('requests.post is documentation')\"",
     ],
 )
 def test_poly_data_policy_allows_neutral_network_reads(command: str) -> None:
     assert _real_command_reason(command, tool_name="PowerShell") is None
+
+
+def test_poly_data_policy_enables_structured_external_effect_classification() -> None:
+    assert _real_policy()["external_effects"] == {
+        "enabled": True,
+        "blocked_hosts": ["api.openai.com", "api.anthropic.com"],
+    }
 
 
 @pytest.mark.parametrize(
