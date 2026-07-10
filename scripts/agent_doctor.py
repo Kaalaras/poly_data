@@ -22,6 +22,12 @@ HARD_SKILL_LIMITS = {
     "max_catalog_chars": 1500,
     "max_body_words": 500,
 }
+PROVENANCE_KINDS = frozenset(
+    {"local", "repository-derived", "repository-derived-with-external-patterns"}
+)
+EXTERNAL_PROVENANCE_KINDS = frozenset(
+    {"repository-derived-with-external-patterns"}
+)
 
 
 def _repository_path(root: Path, value: object) -> tuple[Path | None, str | None]:
@@ -383,7 +389,13 @@ def _validate_provenance(
                 f"skills.provenance[{name!r}].kind must be a non-empty string"
             )
             continue
-        if "external" in kind.casefold():
+        if kind not in PROVENANCE_KINDS:
+            choices = ", ".join(sorted(PROVENANCE_KINDS))
+            errors.append(
+                f"skills.provenance[{name!r}].kind must be one of: {choices}"
+            )
+            continue
+        if kind in EXTERNAL_PROVENANCE_KINDS:
             for field in ("source", "revision", "license", "adaptation"):
                 value = entry.get(field)
                 if not isinstance(value, str) or not value.strip():
