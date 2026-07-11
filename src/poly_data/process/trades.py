@@ -209,10 +209,19 @@ def _v2_markets_long(markets_lf: pl.LazyFrame) -> pl.LazyFrame:
         .unpivot(
             index="market_id",
             on=["token1", "token2"],
-            variable_name="side_name",
-            value_name="asset_id",
+            variable_name="token_side",
+            value_name="asset",
         )
     )
+
+
+def _v2_asset_dimension(store: ParquetStore) -> pl.LazyFrame:
+    assets = store.scan("market_assets")
+    columns = set(assets.collect_schema().names())
+    required = {"asset", "market_id", "token_side"}
+    if required <= columns:
+        return assets.select(sorted(required))
+    return _v2_markets_long(store.scan_markets_all())
 
 
 def _v2_valid_maker_orders(orders_lf: pl.LazyFrame) -> pl.LazyFrame:
@@ -239,12 +248,12 @@ def _v2_valid_maker_orders(orders_lf: pl.LazyFrame) -> pl.LazyFrame:
 
 def _v2_unresolved_assets(
     orders_lf: pl.LazyFrame,
-    markets_lf: pl.LazyFrame,
+    asset_dimension_lf: pl.LazyFrame,
 ) -> pl.DataFrame:
     joined = _v2_valid_maker_orders(orders_lf).join(
-        _v2_markets_long(markets_lf),
+        asset_dimension_lf,
         left_on="_asset",
-        right_on="asset_id",
+        right_on="asset",
         how="left",
     )
     return (
@@ -292,11 +301,14 @@ def _raise_if_v2_exchange_address(df: pl.DataFrame) -> None:
         )
 
 
-def _transform_v2(orders_lf: pl.LazyFrame, markets_lf: pl.LazyFrame) -> pl.LazyFrame:
+def _transform_v2(
+    orders_lf: pl.LazyFrame,
+    asset_dimension_lf: pl.LazyFrame,
+) -> pl.LazyFrame:
     df = _v2_valid_maker_orders(orders_lf).join(
-        _v2_markets_long(markets_lf),
+        asset_dimension_lf,
         left_on="_asset",
-        right_on="asset_id",
+        right_on="asset",
         how="left",
     )
 
@@ -314,7 +326,7 @@ def _transform_v2(orders_lf: pl.LazyFrame, markets_lf: pl.LazyFrame) -> pl.LazyF
         "market_id",
         "maker",
         "taker",
-        pl.col("side_name").alias("nonusdc_side"),
+        pl.col("token_side").alias("nonusdc_side"),
         "maker_direction",
         "taker_direction",
         pl.col("_price").alias("price"),
@@ -393,8 +405,8 @@ def process_trades_v2(store: ParquetStore) -> int:
     last_id = cursor.get("last_id")
     last_ts = cursor.get("last_timestamp")
 
-    markets_lf = store.scan_markets_all()
-    if markets_lf.limit(1).collect().height == 0:
+    asset_dimension_lf = _v2_asset_dimension(store)
+    if asset_dimension_lf.limit(1).collect().height == 0:
         logger.warning("No markets in store — process_trades_v2 is a no-op")
         return 0
 
@@ -427,7 +439,7 @@ def process_trades_v2(store: ParquetStore) -> int:
         if cursor_tail.height == 0:
             continue
 
-        unresolved = _v2_unresolved_assets(orders_lf, markets_lf)
+        unresolved = _v2_unresolved_assets(orders_lf, asset_dimension_lf)
         if unresolved.height:
             sample = unresolved.head(10).to_dicts()
             total_rows = int(unresolved["rows"].sum())
@@ -437,7 +449,7 @@ def process_trades_v2(store: ParquetStore) -> int:
                 f"sample={sample}"
             )
 
-        df = _transform_v2(orders_lf, markets_lf).collect()
+        df = _transform_v2(orders_lf, asset_dimension_lf).collect()
         if df.height:
             _raise_if_v2_exchange_address(df)
             store.append("trades", df)

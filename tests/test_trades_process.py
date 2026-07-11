@@ -230,6 +230,22 @@ def test_process_trades_v2_derives_maker_buy(tmp_path: Path) -> None:
     assert row["taker_direction"] == "SELL"
 
 
+def test_process_trades_v2_uses_materialized_asset_dimension(tmp_path: Path) -> None:
+    store = ParquetStore(tmp_path / "data")
+    store.append("market_assets", pl.DataFrame([{
+        "asset": "111",
+        "market_id": "M1",
+        "token_side": "token1",
+        "timestamp": _ts(2026, 4, 28),
+    }]))
+    store.append("order_filled_v2", pl.DataFrame([_v2_row()]))
+
+    assert process_trades_v2(store) == 1
+    row = store.scan("trades").collect().to_dicts()[0]
+    assert row["market_id"] == "M1"
+    assert row["nonusdc_side"] == "token1"
+
+
 def test_process_trades_v2_filters_invalid_rows(tmp_path: Path) -> None:
     store = ParquetStore(tmp_path / "data")
     _seed_v2_markets(store)

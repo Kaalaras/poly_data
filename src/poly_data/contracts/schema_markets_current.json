@@ -1,0 +1,21 @@
+{
+  "source": "markets_current",
+  "unique": [["id"]],
+  "columns": {
+    "id": {"dtype": "String", "required": true, "nullable": false},
+    "createdAt": {"dtype": "String", "required": true, "nullable": false},
+    "question": {"dtype": "String", "required": true, "nullable": false},
+    "answer1": {"dtype": "String", "required": true, "nullable": false},
+    "answer2": {"dtype": "String", "required": true, "nullable": false},
+    "neg_risk": {"dtype": "Boolean", "required": true, "nullable": false},
+    "market_slug": {"dtype": "String", "required": true, "nullable": false},
+    "token1": {"dtype": "String", "required": true, "nullable": false},
+    "token2": {"dtype": "String", "required": true, "nullable": false},
+    "condition_id": {"dtype": "String", "required": true, "nullable": false},
+    "volume": {"dtype": ["String", "Int64", "Float64"], "required": true, "nullable": false},
+    "ticker": {"dtype": "String", "required": true, "nullable": false},
+    "closedTime": {"dtype": "String", "required": true, "nullable": false},
+    "timestamp": {"dtype": "Int64", "required": true, "nullable": false, "min": 0},
+    "category": {"dtype": "String", "required": true, "nullable": false}
+  }
+}

@@ -46,6 +46,7 @@ def test_cli_update_all_runs_pipeline(tmp_path: Path, mocker) -> None:
     )
     importer = mocker.patch("poly_data.cli.import_ponder_v2_jsonl", return_value=2)
     discover = mocker.patch("poly_data.cli._discover_and_fetch_missing_tokens", return_value=0)
+    refresh = mocker.patch("poly_data.cli.refresh_market_dimensions", return_value={})
     process = mocker.patch("poly_data.cli.process_trades", return_value=0)
     code = main(["update-all", "--data-root", str(tmp_path / "data")])
     assert code == 0
@@ -53,10 +54,11 @@ def test_cli_update_all_runs_pipeline(tmp_path: Path, mocker) -> None:
     importer.assert_called_once_with(output, store=mocker.ANY)
     discover.assert_called_once()
     _, discover_kwargs = discover.call_args
-    assert discover_kwargs["source"] == "all"
+    assert discover_kwargs["source"] == "v2"
+    refresh.assert_called_once()
     process.assert_called_once()
     _, process_kwargs = process.call_args
-    assert process_kwargs["source"] == "all"
+    assert process_kwargs["source"] == "v2"
 
 
 def test_cli_update_all_rejects_ponder_as_a_production_source(tmp_path: Path, mocker) -> None:
@@ -150,6 +152,7 @@ def test_cli_benchmark_lake_prints_json(tmp_path: Path, mocker, capsys) -> None:
 
 def test_cli_process_v2_discovers_v2_missing_markets(tmp_path: Path, mocker) -> None:
     discover = mocker.patch("poly_data.cli._discover_and_fetch_missing_tokens", return_value=0)
+    refresh = mocker.patch("poly_data.cli.refresh_market_dimensions", return_value={})
     process = mocker.patch("poly_data.cli.process_trades", return_value=3)
     code = main([
         "process",
@@ -160,9 +163,22 @@ def test_cli_process_v2_discovers_v2_missing_markets(tmp_path: Path, mocker) -> 
     discover.assert_called_once()
     _, discover_kwargs = discover.call_args
     assert discover_kwargs["source"] == "v2"
+    refresh.assert_called_once()
     process.assert_called_once()
     _, kwargs = process.call_args
     assert kwargs["source"] == "v2"
+
+
+def test_cli_refresh_market_dimensions(tmp_path: Path, mocker) -> None:
+    refresh = mocker.patch(
+        "poly_data.cli.refresh_market_dimensions",
+        return_value={"market_assets": 2, "markets_current": 1},
+    )
+
+    code = main(["refresh-market-dimensions", "--data-root", str(tmp_path / "data")])
+
+    assert code == 0
+    refresh.assert_called_once()
 
 
 def test_cli_v2_status_prints_json(tmp_path: Path, mocker, capsys) -> None:

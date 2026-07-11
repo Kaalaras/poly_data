@@ -44,7 +44,10 @@ def _valid_order_filled_v2_df() -> pl.DataFrame:
 
 
 def test_contract_files_exist_for_core_sources() -> None:
-    for source in ("markets", "orderfilled", "order_filled_v2", "trades"):
+    for source in (
+        "markets", "markets_current", "market_assets", "orderfilled",
+        "order_filled_v2", "trades",
+    ):
         contract = load_contract(source)
         assert contract["source"] == source
         assert contract["columns"]

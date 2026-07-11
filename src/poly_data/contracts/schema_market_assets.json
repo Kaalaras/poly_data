@@ -1,0 +1,15 @@
+{
+  "source": "market_assets",
+  "unique": [["asset"]],
+  "columns": {
+    "asset": {"dtype": "String", "required": true, "nullable": false},
+    "market_id": {"dtype": "String", "required": true, "nullable": false},
+    "token_side": {
+      "dtype": "String",
+      "required": true,
+      "nullable": false,
+      "allowed": ["token1", "token2"]
+    },
+    "timestamp": {"dtype": "Int64", "required": true, "nullable": false, "min": 0}
+  }
+}

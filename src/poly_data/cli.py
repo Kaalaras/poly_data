@@ -9,6 +9,7 @@ from pathlib import Path
 
 from poly_data.benchmark import benchmark_source
 from poly_data.compact.monthly import compact_all
+from poly_data.dimensions import refresh_market_dimensions
 from poly_data.distribute.huggingface import push_snapshot
 from poly_data.ingest.discover import discover_and_fetch
 from poly_data.ingest.markets import update_markets
@@ -125,6 +126,8 @@ def _build_parser() -> argparse.ArgumentParser:
     lake_bench = sub.add_parser("benchmark-lake", parents=[common],
                                 help="benchmark a local Parquet source")
     lake_bench.add_argument("--source", required=True, help="source to scan")
+    sub.add_parser("refresh-market-dimensions", parents=[common],
+                   help="materialize compact market dimensions for V2 processing")
 
     c = sub.add_parser("compact", parents=[common],
                        help="compact month partitions")
@@ -242,6 +245,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(benchmark_source(store, ns.source), indent=2, sort_keys=True))
         return 0
 
+    if ns.cmd == "refresh-market-dimensions":
+        print(json.dumps(refresh_market_dimensions(store), indent=2, sort_keys=True))
+        return 0
+
     if ns.cmd == "process":
         # Discover-and-fetch missing tokens BEFORE deriving trades so the join
         # against `markets`/`missing_markets` resolves token IDs that ingest
@@ -249,6 +256,8 @@ def main(argv: list[str] | None = None) -> int:
         n_missing = _discover_and_fetch_missing_tokens(store, source=ns.source)
         if n_missing:
             logger.info("process: fetched %d missing markets", n_missing)
+        if ns.source in {"v2", "all"}:
+            refresh_market_dimensions(store)
         n = process_trades(store, source=ns.source)
         logger.info("process: %d new trades", n)
         return 0
@@ -291,10 +300,11 @@ def main(argv: list[str] | None = None) -> int:
             summary.ranges,
             n_raw_v2,
         )
-        n_missing = _discover_and_fetch_missing_tokens(store, source="all")
+        n_missing = _discover_and_fetch_missing_tokens(store, source="v2")
         if n_missing:
             logger.info("update-all: fetched %d missing markets", n_missing)
-        process_trades(store, source="all")
+        refresh_market_dimensions(store)
+        process_trades(store, source="v2")
         return 0
 
     parser.error(f"unknown command: {ns.cmd}")

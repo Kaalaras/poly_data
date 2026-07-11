@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import threading
 import time
 import uuid
@@ -56,6 +57,40 @@ class ParquetStore:
         if last_path is None:
             raise ValueError("Empty DataFrame — nothing to append")
         return last_path
+
+    def replace_source(self, source: str, frame: pl.LazyFrame) -> int:
+        """Replace a derived source only after its staged Parquet files validate."""
+        from poly_data.contracts import assert_valid_frame
+
+        df = frame.collect()
+        if df.height == 0:
+            raise ValueError("Empty DataFrame — refusing to replace source")
+        assert_valid_frame(df, source)
+
+        token = uuid.uuid4().hex
+        staging_root = self.root / f".{source}.staging-{token}"
+        staged_source = staging_root / source
+        destination = self.root / source
+        backup = self.root / f".{source}.backup-{token}"
+        moved_destination = False
+        try:
+            staged_store = ParquetStore(staging_root)
+            staged_store.append(source, df)
+            assert_valid_frame(staged_store.scan(source), source)
+
+            if destination.exists():
+                os.replace(destination, backup)
+                moved_destination = True
+            os.replace(staged_source, destination)
+            if backup.exists():
+                shutil.rmtree(backup)
+            return df.height
+        except Exception:
+            if moved_destination and backup.exists() and not destination.exists():
+                os.replace(backup, destination)
+            raise
+        finally:
+            shutil.rmtree(staging_root, ignore_errors=True)
 
     # ----- reading ---------------------------------------------------------
 
