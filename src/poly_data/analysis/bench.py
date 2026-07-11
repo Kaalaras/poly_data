@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import gc
+import hashlib
+from collections.abc import Callable
+from io import BytesIO
 import time
 from contextlib import contextmanager
 from dataclasses import asdict, dataclass
@@ -63,3 +66,37 @@ class Bench:
 
     def df(self) -> pl.DataFrame:
         return pl.DataFrame([asdict(r) for r in self.results])
+
+
+def repeat_benchmark(
+    label: str,
+    runs: int,
+    operation: Callable[[], pl.DataFrame],
+) -> pl.DataFrame:
+    """Measure one materialized operation repeatedly and sign every result."""
+    if runs < 1:
+        raise ValueError("runs must be positive")
+    bench = Bench()
+    hashes: list[str] = []
+    for _ in range(runs):
+        with bench(label, "notebook") as measurement:
+            output = operation()
+            if not isinstance(output, pl.DataFrame):
+                raise TypeError("benchmark operation must return a polars DataFrame")
+            measurement["rows_out"] = output.height
+            hashes.append(_frame_sha256(output))
+    return bench.df().with_columns([
+        pl.Series("run", range(1, runs + 1), dtype=pl.Int64),
+        pl.Series("result_sha256", hashes, dtype=pl.String),
+    ])
+
+
+def _frame_sha256(frame: pl.DataFrame) -> str:
+    """Hash a canonical, bounded analytical result rather than its execution plan."""
+    columns = sorted(frame.columns)
+    canonical = frame.select(columns)
+    if columns:
+        canonical = canonical.sort(columns)
+    buffer = BytesIO()
+    canonical.write_ipc(buffer)
+    return hashlib.sha256(buffer.getvalue()).hexdigest()
