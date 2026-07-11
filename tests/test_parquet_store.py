@@ -87,6 +87,21 @@ def test_append_requires_timestamp_column(store_root: Path) -> None:
         store.append("orderFilled", df)
 
 
+def test_sink_partition_writes_lazy_result_atomically(store_root: Path) -> None:
+    store = ParquetStore(store_root)
+    rows = pl.DataFrame([
+        {"id": "a", "timestamp": 1775001600},
+        {"id": "b", "timestamp": 1775001601},
+    ])
+
+    path = store.sink_partition("trades", 2026, 4, rows.lazy())
+
+    assert path.is_file()
+    assert path.name.startswith("run-")
+    assert path.parent == store_root / "trades" / "year=2026" / "month=4"
+    assert store.scan("trades", 2026, 4).select("id").collect().height == rows.height
+
+
 def test_save_and_load_cursor(store_root: Path) -> None:
     store = ParquetStore(store_root)
     assert store.last_cursor("orderFilled") is None

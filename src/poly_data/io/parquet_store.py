@@ -92,6 +92,28 @@ class ParquetStore:
         finally:
             shutil.rmtree(staging_root, ignore_errors=True)
 
+    def sink_partition(
+        self,
+        source: str,
+        year: int,
+        month: int,
+        frame: pl.LazyFrame,
+    ) -> Path:
+        """Write one lazy partition result and atomically publish its Parquet file."""
+        directory = self.root / source / f"year={year}" / f"month={month}"
+        directory.mkdir(parents=True, exist_ok=True)
+        epoch_ms = int(time.time() * 1000)
+        uniq = f"{os.getpid()}-{threading.get_ident()}-{uuid.uuid4().hex[:8]}"
+        final = directory / f"run-{epoch_ms}-{uniq}.parquet"
+        temporary = final.with_suffix(".parquet.tmp")
+        try:
+            frame.sink_parquet(temporary, compression="zstd")
+            os.replace(temporary, final)
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            raise
+        return final
+
     # ----- reading ---------------------------------------------------------
 
     def scan(

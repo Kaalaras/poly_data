@@ -246,6 +246,17 @@ def test_process_trades_v2_uses_materialized_asset_dimension(tmp_path: Path) -> 
     assert row["nonusdc_side"] == "token1"
 
 
+def test_process_trades_v2_uses_lazy_partition_sink(tmp_path: Path, mocker) -> None:
+    store = ParquetStore(tmp_path / "data")
+    _seed_v2_markets(store)
+    store.append("order_filled_v2", pl.DataFrame([_v2_row()]))
+    sink = mocker.spy(ParquetStore, "sink_partition")
+
+    assert process_trades_v2(store) == 1
+
+    sink.assert_called_once()
+
+
 def test_process_trades_v2_filters_invalid_rows(tmp_path: Path) -> None:
     store = ParquetStore(tmp_path / "data")
     _seed_v2_markets(store)

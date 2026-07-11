@@ -281,9 +281,9 @@ def _v2_partition_tail(orders_lf: pl.LazyFrame) -> pl.DataFrame:
     )
 
 
-def _raise_if_v2_exchange_address(df: pl.DataFrame) -> None:
+def _raise_if_v2_exchange_address(frame: pl.LazyFrame) -> None:
     bad = (
-        df.with_columns([
+        frame.with_columns([
             pl.col("maker").cast(pl.String).str.to_lowercase().alias("_maker"),
             pl.col("taker").cast(pl.String).str.to_lowercase().alias("_taker"),
         ])
@@ -293,6 +293,7 @@ def _raise_if_v2_exchange_address(df: pl.DataFrame) -> None:
         )
         .select(["orderfilled_id", "maker", "taker"])
         .head(5)
+        .collect()
     )
     if bad.height:
         raise V2TradeModelError(
@@ -449,11 +450,12 @@ def process_trades_v2(store: ParquetStore) -> int:
                 f"sample={sample}"
             )
 
-        df = _transform_v2(orders_lf, asset_dimension_lf).collect()
-        if df.height:
-            _raise_if_v2_exchange_address(df)
-            store.append("trades", df)
-            total += df.height
+        trades_lf = _transform_v2(orders_lf, asset_dimension_lf)
+        _raise_if_v2_exchange_address(trades_lf)
+        rows = trades_lf.select(pl.len()).collect(engine="streaming").item()
+        if rows:
+            store.sink_partition("trades", year, month, trades_lf)
+            total += int(rows)
 
         cursor_row = cursor_tail.to_dicts()[0]
         max_raw_id = str(cursor_row["id"])
