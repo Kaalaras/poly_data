@@ -46,6 +46,8 @@ def main() -> None:
             "comparaisons de cohortes aléatoires doivent être répétées sur plusieurs seeds."
         ),
     ]
+    for index, cell in enumerate(notebook.cells):
+        cell["id"] = f"06-{index:02d}"
     output = Path(__file__).resolve().parents[1] / "examples" / "06-copy-betting.ipynb"
     nbf.write(notebook, output)
     print(f"wrote {output}")

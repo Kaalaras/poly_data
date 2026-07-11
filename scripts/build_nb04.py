@@ -94,6 +94,8 @@ def main() -> None:
             "plt.tight_layout()"
         ),
     ]
+    for index, cell in enumerate(notebook.cells):
+        cell["id"] = f"04-{index:02d}"
     output = Path(__file__).resolve().parents[1] / "examples" / "04-benchmark-polars-vs-duckdb.ipynb"
     output.parent.mkdir(parents=True, exist_ok=True)
     nbf.write(notebook, output)

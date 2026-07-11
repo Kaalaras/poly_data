@@ -74,6 +74,8 @@ def main() -> None:
             "un diagnostic : elle ne doit pas être transformée en étiquette pour évaluer un modèle."
         ),
     ]
+    for index, cell in enumerate(notebook.cells):
+        cell["id"] = f"01-{index:02d}"
     output = Path(__file__).resolve().parents[1] / "examples" / "01-v2-lake-discovery.ipynb"
     output.parent.mkdir(parents=True, exist_ok=True)
     nbf.write(notebook, output)

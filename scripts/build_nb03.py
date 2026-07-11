@@ -60,6 +60,8 @@ def main() -> None:
             "réalisé, il faut joindre un résultat officiel et respecter la date de résolution."
         ),
     ]
+    for index, cell in enumerate(notebook.cells):
+        cell["id"] = f"03-{index:02d}"
     output = Path(__file__).resolve().parents[1] / "examples" / "03-toy-backtest.ipynb"
     output.parent.mkdir(parents=True, exist_ok=True)
     nbf.write(notebook, output)

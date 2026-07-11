@@ -76,6 +76,8 @@ def main() -> None:
             ")"
         ),
     ]
+    for index, cell in enumerate(notebook.cells):
+        cell["id"] = f"02-{index:02d}"
     output = Path(__file__).resolve().parents[1] / "examples" / "02-v2-wallet-analysis.ipynb"
     output.parent.mkdir(parents=True, exist_ok=True)
     nbf.write(notebook, output)

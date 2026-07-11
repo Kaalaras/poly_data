@@ -94,6 +94,8 @@ def main() -> None:
             "de rentabilité. Toute simulation de PnL doit ensuite modéliser exécution et règlement."
         ),
     ]
+    for index, cell in enumerate(notebook.cells):
+        cell["id"] = f"05-{index:02d}"
     output = Path(__file__).resolve().parents[1] / "examples" / "05-ml-dataset-and-baseline.ipynb"
     output.parent.mkdir(parents=True, exist_ok=True)
     nbf.write(notebook, output)

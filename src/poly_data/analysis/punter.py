@@ -294,17 +294,24 @@ def simulate_copy_bet(
     rows: list[dict[str, object]] = []
     flows: list[dict[str, float | int]] = []
     capital = bankroll * per_bet_frac
+    reserved_until: list[tuple[int, float]] = []
     selected = entries.filter(pl.col("taker").is_in(list(leaders))).filter(
         (pl.col("timestamp") >= train_end_ts) & (pl.col("timestamp") < test_end_ts)
     ).sort("timestamp")
     for signal in selected.iter_rows(named=True):
+        signal_ts = int(signal["timestamp"])
+        reserved_until = [
+            item for item in reserved_until if item[0] > signal_ts
+        ]
+        if sum(amount for _, amount in reserved_until) + capital > bankroll:
+            continue
         direction = str(signal["taker_direction"])
         candidate = (
             all_punter_trades
             .filter((pl.col("market_id") == signal["market_id"])
                     & (pl.col("nonusdc_side") == signal["nonusdc_side"])
                     & (pl.col("taker_direction") != direction)
-                    & (pl.col("timestamp") >= int(signal["timestamp"]) + latency_secs)
+                    & (pl.col("timestamp") >= signal_ts + latency_secs)
                     & (pl.col("timestamp") < test_end_ts))
             .sort("timestamp").head(1)
         )
@@ -316,6 +323,7 @@ def simulate_copy_bet(
         settled_ts = int(outcome["resolved_at"][0])
         if settled_ts > test_end_ts:
             continue
+        reserved_until.append((settled_ts, capital))
         winner = str(outcome["winner_token"][0])
         fee = capital * fee_bps / 10_000
         if direction == "BUY":
