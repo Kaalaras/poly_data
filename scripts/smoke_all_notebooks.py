@@ -1,4 +1,4 @@
-"""Smoke-run every notebook under examples/ via nbclient against the real data/ snapshot.
+"""Smoke-run every supported V2 notebook via nbclient against a smoke fixture.
 
 Reports per-notebook: pass/fail, wall time, last-cell error if any.
 """
@@ -16,9 +16,10 @@ from nbclient.exceptions import CellExecutionError
 
 ROOT = Path(__file__).resolve().parents[1]
 NOTEBOOKS = [
-    "01-trader-analysis.ipynb",
-    "02-backtest.ipynb",
-    "03-orderfilled-analysis.ipynb",
+    "00-v2-lake-quickstart.ipynb",
+    "01-v2-lake-discovery.ipynb",
+    "02-v2-wallet-analysis.ipynb",
+    "03-toy-backtest.ipynb",
     "04-benchmark-polars-vs-duckdb.ipynb",
     "05-ml-dataset-and-baseline.ipynb",
     "06-copy-betting.ipynb",
@@ -26,10 +27,18 @@ NOTEBOOKS = [
 
 
 def main() -> int:
-    data_root = Path(os.environ.get("POLY_DATA_ROOT", str(ROOT / "data")))
-    if not (data_root / "orderFilled").is_dir():
-        raise SystemExit(f"orderFilled missing at {data_root}")
+    data_root = Path(os.environ.get("POLY_DATA_ROOT", str(ROOT / "data_smoke")))
+    required = (
+        "order_filled_v2", "trades", "markets_current", "market_assets", "market_outcomes",
+    )
+    missing = [source for source in required if not list((data_root / source).rglob("*.parquet"))]
+    if missing:
+        raise SystemExit(
+            f"missing V2 smoke sources at {data_root}: {missing}; run "
+            "`uv run python scripts/make_synthetic_smoke_fixture.py` first"
+        )
     os.environ["POLY_DATA_ROOT"] = data_root.as_posix()
+    os.environ.setdefault("POLY_NOTEBOOK_MODE", "smoke")
 
     results = []
     for name in NOTEBOOKS:
