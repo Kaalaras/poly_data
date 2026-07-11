@@ -9,10 +9,12 @@ import polars as pl
 import requests
 
 from poly_data.io.parquet_store import ParquetStore
+from poly_data.tls import configure_system_truststore
 
 logger = logging.getLogger(__name__)
 
 API_URL = "https://gamma-api.polymarket.com/markets"
+KEYSET_API_URL = f"{API_URL}/keyset"
 
 MARKET_COLUMNS = [
     "createdAt", "id", "question", "answer1", "answer2", "neg_risk",
@@ -21,11 +23,16 @@ MARKET_COLUMNS = [
 ]
 
 
-def _existing_row_count(store: ParquetStore, source: str) -> int:
+def _existing_markets(store: ParquetStore) -> dict[str, dict[str, Any]]:
     try:
-        return int(store.scan(source).select(pl.len()).collect().item() or 0)
+        rows = store.scan_markets_all().collect().to_dicts()
+        return {
+            str(row["id"]): {column: row.get(column) for column in MARKET_COLUMNS}
+            for row in rows
+            if row.get("id") is not None
+        }
     except Exception:
-        return 0
+        return {}
 
 
 def _parse_market(market: dict[str, Any]) -> dict[str, Any] | None:
@@ -71,7 +78,7 @@ def _parse_market(market: dict[str, Any]) -> dict[str, Any] | None:
             "timestamp": ts_int,
             "category": category,
         }
-    except (ValueError, KeyError, json.JSONDecodeError, TypeError) as e:
+    except (ValueError, KeyError, IndexError, json.JSONDecodeError, TypeError) as e:
         logger.warning("market parse failed for id=%s: %s",
                        market.get("id", "?"), e)
         return None
@@ -90,44 +97,56 @@ def _to_unix_seconds(value: Any) -> int:
         return 0
 
 
-def update_markets(store: ParquetStore, *, batch_size: int = 500) -> int:
-    """Paginate Polymarket markets API; append parsed rows to `markets` source.
-
-    Resumes from existing row count. Total inserted rows returned.
-    """
-    offset = _existing_row_count(store, "markets")
-    if offset:
-        logger.info("Resuming markets fetch at offset %d", offset)
-
+def update_markets(store: ParquetStore, *, batch_size: int = 100) -> int:
+    """Keyset-paginate Polymarket markets API and append unseen rows."""
+    configure_system_truststore()
+    page_size = min(max(1, batch_size), 100)
+    existing = _existing_markets(store)
+    if existing:
+        logger.info("Checking %d locally known markets for metadata refresh", len(existing))
     total_inserted = 0
+    after_cursor: str | None = None
     session = requests.Session()
     while True:
         params = {
-            "order": "createdAt",
             "ascending": "true",
-            "limit": batch_size,
-            "offset": offset,
+            "closed": "true",
+            "limit": page_size,
         }
-        resp = session.get(API_URL, params=params, timeout=30)
+        if after_cursor:
+            params["after_cursor"] = after_cursor
+        resp = session.get(KEYSET_API_URL, params=params, timeout=30)
         if resp.status_code in (429, 500, 502, 503, 504):
             logger.warning("API %s, sleeping 5s", resp.status_code)
             time.sleep(5)
             continue
         resp.raise_for_status()
-        markets = resp.json()
+        payload = resp.json()
+        markets = payload.get("markets", []) if isinstance(payload, dict) else payload
         if not markets:
             break
 
-        rows = [r for r in (_parse_market(m) for m in markets) if r is not None]
+        rows = []
+        refresh_rows = []
+        for raw in markets:
+            row = _parse_market(raw)
+            if row is None:
+                continue
+            previous = existing.get(row["id"])
+            if previous is None:
+                rows.append(row)
+            elif previous != row:
+                refresh_rows.append({**row, "observed_at": time.time_ns()})
+            existing[row["id"]] = row
         if rows:
             store.append("markets", pl.DataFrame(rows))
             total_inserted += len(rows)
+        if refresh_rows:
+            store.append("market_refreshes", pl.DataFrame(refresh_rows))
+            total_inserted += len(refresh_rows)
 
-        # CRITICAL: advance by API count so offset stays in lockstep with
-        # server-side pagination, even if some rows failed to parse.
-        offset += len(markets)
-
-        if len(markets) < batch_size:
+        after_cursor = payload.get("next_cursor") if isinstance(payload, dict) else None
+        if not after_cursor:
             break
 
     return total_inserted
@@ -142,6 +161,7 @@ def update_missing_tokens(
     """Fetch markets for token IDs not already in the store; append new ones."""
     if not missing_token_ids:
         return 0
+    configure_system_truststore()
 
     existing_ids: set[str] = set()
     try:
@@ -157,16 +177,21 @@ def update_missing_tokens(
     session = requests.Session()
     new_rows: list[dict] = []
     for token_id in missing_token_ids:
+        backoff = 2.0
         for attempt in range(3):
             try:
                 resp = session.get(
-                    API_URL, params={"clob_token_ids": token_id}, timeout=30
+                    API_URL,
+                    params={"clob_token_ids": token_id, "closed": "true"},
+                    timeout=30,
                 )
                 if resp.status_code == 429:
-                    time.sleep(10)
+                    time.sleep(min(backoff * 4, 60))
+                    backoff *= 2
                     continue
                 if resp.status_code != 200:
-                    time.sleep(2)
+                    time.sleep(backoff)
+                    backoff *= 2
                     continue
                 payload = resp.json()
                 if not payload:
@@ -180,7 +205,8 @@ def update_missing_tokens(
                 new_rows.append(row)
                 break
             except requests.RequestException:
-                time.sleep(2)
+                time.sleep(backoff)
+                backoff *= 2
         time.sleep(inter_request_sleep)
 
     if new_rows:

@@ -1,1 +1,1 @@
-"""Ingest subpackage: API clients for Polymarket and Goldsky."""
+"""Ingest subpackage: Polymarket market and Ponder V2 import helpers."""

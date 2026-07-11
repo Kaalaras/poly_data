@@ -11,10 +11,10 @@ dependencies = [
     "polars>=0.20,<2.0",
     "pyarrow>=15",
     "requests>=2.31",
-    "gql[requests]>=3.4",
-    "flatten-json>=0.1.13",
     "huggingface-hub>=0.20",
     "rich>=13",
+    "pandas-stubs~=2.3.3",
+    "truststore>=0.10.4",
 ]
 
 [project.optional-dependencies]

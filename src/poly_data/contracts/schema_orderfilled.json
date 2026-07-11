@@ -1,0 +1,15 @@
+{
+  "source": "orderfilled",
+  "unique": [["id"]],
+  "columns": {
+    "id": {"dtype": "String", "required": true, "nullable": false},
+    "timestamp": {"dtype": "Int64", "required": true, "nullable": false, "min": 1},
+    "maker": {"dtype": "String", "required": true, "nullable": false},
+    "makerAssetId": {"dtype": "String", "required": true, "nullable": false},
+    "makerAmountFilled": {"dtype": ["String", "Int64"], "required": true, "nullable": false},
+    "taker": {"dtype": "String", "required": true, "nullable": false},
+    "takerAssetId": {"dtype": "String", "required": true, "nullable": false},
+    "takerAmountFilled": {"dtype": ["String", "Int64"], "required": true, "nullable": false},
+    "transactionHash": {"dtype": "String", "required": true, "nullable": false}
+  }
+}

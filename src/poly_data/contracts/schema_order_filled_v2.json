@@ -1,0 +1,51 @@
+{
+  "source": "order_filled_v2",
+  "unique": [["id"]],
+  "columns": {
+    "id": {"dtype": "String", "required": true, "nullable": false},
+    "exchange": {"dtype": "String", "required": false, "nullable": false},
+    "log_index": {"dtype": "Int64", "required": false, "nullable": false, "min": 0},
+    "timestamp": {"dtype": "Int64", "required": true, "nullable": false, "min": 1},
+    "block_number": {"dtype": "Int64", "required": true, "nullable": false, "min": 1},
+    "block_timestamp": {"dtype": "Int64", "required": true, "nullable": false, "min": 1},
+    "transaction_hash": {"dtype": "String", "required": true, "nullable": false},
+    "user_id": {"dtype": "String", "required": true, "nullable": false},
+    "asset": {"dtype": "String", "required": true, "nullable": false},
+    "amount_usdc": {
+      "dtype": "Float64",
+      "required": true,
+      "nullable": false,
+      "exclusive_min": 0
+    },
+    "amount_shares": {
+      "dtype": "Float64",
+      "required": true,
+      "nullable": false,
+      "exclusive_min": 0
+    },
+    "price": {
+      "dtype": "Float64",
+      "required": true,
+      "nullable": false,
+      "min": 0,
+      "max": 1
+    },
+    "side": {
+      "dtype": "String",
+      "required": true,
+      "nullable": false,
+      "allowed": ["BUY", "SELL"]
+    },
+    "order_hash": {"dtype": "String", "required": true, "nullable": false},
+    "counterparty_id": {"dtype": "String", "required": true, "nullable": false},
+    "order_type": {
+      "dtype": "String",
+      "required": true,
+      "nullable": false,
+      "allowed": ["maker", "taker"]
+    },
+    "fee": {"dtype": "Float64", "required": true, "nullable": false, "min": 0},
+    "builder": {"dtype": "String", "required": true, "nullable": false},
+    "metadata": {"dtype": "String", "required": false, "nullable": false}
+  }
+}

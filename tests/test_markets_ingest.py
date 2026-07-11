@@ -9,6 +9,8 @@ import responses
 from poly_data.io.parquet_store import ParquetStore
 from poly_data.ingest.markets import update_markets
 
+KEYSET_URL = "https://gamma-api.polymarket.com/markets/keyset"
+
 
 def _market(i: int, ts: int) -> dict:
     return {
@@ -33,14 +35,17 @@ def test_update_markets_writes_partitioned_parquet(tmp_path: Path) -> None:
 
     responses.add(
         responses.GET,
-        "https://gamma-api.polymarket.com/markets",
-        json=[_market(1, 1700000000), _market(2, 1700000100)],
+        KEYSET_URL,
+        json={
+            "markets": [_market(1, 1700000000), _market(2, 1700000100)],
+            "next_cursor": "c2",
+        },
         status=200,
     )
     responses.add(
         responses.GET,
-        "https://gamma-api.polymarket.com/markets",
-        json=[],
+        KEYSET_URL,
+        json={"markets": []},
         status=200,
     )
 
@@ -53,9 +58,26 @@ def test_update_markets_writes_partitioned_parquet(tmp_path: Path) -> None:
 
 
 @responses.activate
-def test_update_markets_offset_uses_api_count_not_parsed(tmp_path: Path) -> None:
-    """Regression: previous code did `current_offset += batch_count` which drifted
-    when individual rows failed to parse. Use len(markets) returned by API."""
+def test_update_markets_caps_keyset_limit_and_requests_closed_markets(tmp_path: Path) -> None:
+    store = ParquetStore(tmp_path / "data")
+    responses.add(
+        responses.GET,
+        KEYSET_URL,
+        json={"markets": [_market(1, 1700000000)]},
+        status=200,
+    )
+
+    assert update_markets(store, batch_size=500) == 1
+
+    request_url = responses.calls[0].request.url
+    assert "limit=100" in request_url
+    assert "closed=true" in request_url
+
+
+@responses.activate
+def test_update_markets_keyset_uses_next_cursor_after_parse_failure(
+    tmp_path: Path,
+) -> None:
     store = ParquetStore(tmp_path / "data")
 
     bad = _market(99, 1700000000)
@@ -63,14 +85,14 @@ def test_update_markets_offset_uses_api_count_not_parsed(tmp_path: Path) -> None
 
     responses.add(
         responses.GET,
-        "https://gamma-api.polymarket.com/markets",
-        json=[bad, _market(2, 1700000100)],
+        KEYSET_URL,
+        json={"markets": [bad, _market(2, 1700000100)], "next_cursor": "c2"},
         status=200,
     )
     responses.add(
         responses.GET,
-        "https://gamma-api.polymarket.com/markets",
-        json=[],
+        KEYSET_URL,
+        json={"markets": []},
         status=200,
     )
 
@@ -78,11 +100,11 @@ def test_update_markets_offset_uses_api_count_not_parsed(tmp_path: Path) -> None
     assert n == 1
 
     second = responses.calls[1].request
-    assert "offset=2" in second.url
+    assert "after_cursor=c2" in second.url
 
 
 @responses.activate
-def test_update_markets_resumes_from_existing_row_count(tmp_path: Path) -> None:
+def test_update_markets_refreshes_existing_ids_on_rerun(tmp_path: Path) -> None:
     store = ParquetStore(tmp_path / "data")
     seed = pl.DataFrame([
         {
@@ -96,13 +118,39 @@ def test_update_markets_resumes_from_existing_row_count(tmp_path: Path) -> None:
 
     responses.add(
         responses.GET,
-        "https://gamma-api.polymarket.com/markets",
-        json=[],
+        KEYSET_URL,
+        json={"markets": [_market(0, 1690000000), _market(1, 1700000000)]},
         status=200,
     )
 
-    update_markets(store, batch_size=10)
-    assert "offset=1" in responses.calls[0].request.url
+    n = update_markets(store, batch_size=10)
+    assert n == 2
+    assert store.scan_markets_all().collect().height == 2
+    assert "offset=" not in responses.calls[0].request.url
+
+
+@responses.activate
+def test_update_markets_refreshes_changed_existing_metadata(tmp_path: Path) -> None:
+    store = ParquetStore(tmp_path / "data")
+    store.append("markets", pl.DataFrame([{
+        "id": "m1", "createdAt": "1700000000", "question": "old",
+        "answer1": "Y", "answer2": "N", "neg_risk": False,
+        "market_slug": "old", "token1": "tok_1_a", "token2": "tok_1_b",
+        "condition_id": "c1", "volume": "100", "ticker": "T1",
+        "closedTime": "", "timestamp": 1700000000, "category": "",
+    }]))
+    changed = _market(1, 1700000000)
+    changed["question"] = "new"
+    changed["volume"] = 200
+    changed["closedTime"] = "2026-07-01T00:00:00Z"
+    responses.add(responses.GET, KEYSET_URL, json={"markets": [changed]}, status=200)
+
+    assert update_markets(store) == 1
+
+    current = store.scan_markets_all().collect()
+    assert current["question"].to_list() == ["new"]
+    assert current["volume"].to_list() == ["200"]
+    assert (tmp_path / "data" / "market_refreshes").is_dir()
 
 
 @responses.activate

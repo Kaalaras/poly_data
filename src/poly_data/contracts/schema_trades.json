@@ -1,0 +1,49 @@
+{
+  "source": "trades",
+  "unique": [["orderfilled_id"]],
+  "columns": {
+    "timestamp": {"dtype": "Int64", "required": true, "nullable": false, "min": 1},
+    "market_id": {"dtype": "String", "required": true, "nullable": false},
+    "maker": {"dtype": "String", "required": true, "nullable": false},
+    "taker": {"dtype": "String", "required": true, "nullable": false},
+    "nonusdc_side": {
+      "dtype": "String",
+      "required": true,
+      "nullable": false,
+      "allowed": ["token1", "token2"]
+    },
+    "maker_direction": {
+      "dtype": "String",
+      "required": true,
+      "nullable": false,
+      "allowed": ["BUY", "SELL"]
+    },
+    "taker_direction": {
+      "dtype": "String",
+      "required": true,
+      "nullable": false,
+      "allowed": ["BUY", "SELL"]
+    },
+    "price": {
+      "dtype": "Float64",
+      "required": true,
+      "nullable": false,
+      "min": 0,
+      "max": 1
+    },
+    "usd_amount": {
+      "dtype": "Float64",
+      "required": true,
+      "nullable": false,
+      "exclusive_min": 0
+    },
+    "token_amount": {
+      "dtype": "Float64",
+      "required": true,
+      "nullable": false,
+      "exclusive_min": 0
+    },
+    "transactionHash": {"dtype": "String", "required": true, "nullable": false},
+    "orderfilled_id": {"dtype": "String", "required": true, "nullable": false}
+  }
+}

@@ -40,11 +40,34 @@ def test_scan_reads_back_appended_rows(store_root: Path,
     assert out["id"].to_list() == ["a1", "a2", "a3"]
 
 
+def test_scan_accepts_additive_schema_evolution(store_root: Path) -> None:
+    store = ParquetStore(store_root)
+    store.append("order_filled_v2", pl.DataFrame([{
+        "id": "legacy", "timestamp": 1700000000,
+    }]))
+    store.append("order_filled_v2", pl.DataFrame([{
+        "id": "v2", "timestamp": 1700000001, "log_index": 7,
+    }]))
+
+    rows = store.scan("order_filled_v2").sort("id").collect()
+    assert rows["log_index"].to_list() == [None, 7]
+
+
 def test_scan_empty_source_returns_empty_lazyframe(store_root: Path) -> None:
     store = ParquetStore(store_root)
     lf = store.scan("orderFilled")
     out = lf.collect()
     assert out.height == 0
+
+
+def test_max_timestamp_returns_latest_timestamp(
+    store_root: Path,
+    sample_orderfilled_df: pl.DataFrame,
+) -> None:
+    store = ParquetStore(store_root)
+    assert store.max_timestamp("orderFilled") is None
+    store.append("orderFilled", sample_orderfilled_df)
+    assert store.max_timestamp("orderFilled") == sample_orderfilled_df["timestamp"].max()
 
 
 def test_scan_partition_filter_prunes(store_root: Path,

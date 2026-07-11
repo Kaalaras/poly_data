@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import logging
 
+import polars as pl
+
 from poly_data.io.parquet_store import ParquetStore
 
 logger = logging.getLogger(__name__)
+_UNIQUE_KEYS = {
+    "trades": "orderfilled_id",
+}
 
 
 def compact_all(store: ParquetStore, source: str) -> dict[str, int]:
@@ -24,11 +29,15 @@ def compact_all(store: ParquetStore, source: str) -> dict[str, int]:
                 month = int(month_dir.name.split("=", 1)[1])
             except ValueError:
                 continue
-            n = store.compact(source, year, month)
+            n = store.compact(
+                source,
+                year,
+                month,
+                unique_key=_UNIQUE_KEYS.get(source, "id"),
+            )
             if n == 0:
                 files = list(month_dir.glob("*.parquet"))
                 if files:
-                    import polars as pl
                     n = int(
                         pl.scan_parquet([str(f) for f in files])
                         .select(pl.len()).collect().item()

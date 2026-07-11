@@ -3,6 +3,10 @@ processed/
 goldsky/
 # Byte-compiled / optimized / DLL files
 __pycache__/
+node_modules/
+.ponder/
+.pglite/
+ponder-env.d.ts
 *.py[codz]
 *$py.class
 
@@ -212,6 +216,7 @@ __marimo__/
 # v2 data lake
 data/
 data_smoke/
+*.jsonl
 _nb05_smoke.log
 _duckdb_tmp/
 legacy_csv/
