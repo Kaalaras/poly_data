@@ -5,6 +5,7 @@ Reports per-notebook: pass/fail, wall time, last-cell error if any.
 from __future__ import annotations
 
 import os
+import subprocess
 import sys
 import time
 import traceback
@@ -27,6 +28,16 @@ NOTEBOOKS = [
 
 
 def main() -> int:
+    for builder in range(7):
+        subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / f"build_nb{builder:02d}.py")],
+            check=True,
+        )
+    if "POLY_DATA_ROOT" not in os.environ:
+        subprocess.run(
+            [sys.executable, str(ROOT / "scripts" / "make_synthetic_smoke_fixture.py")],
+            check=True,
+        )
     data_root = Path(os.environ.get("POLY_DATA_ROOT", str(ROOT / "data_smoke")))
     required = (
         "order_filled_v2", "trades", "markets_current", "market_assets", "market_outcomes",

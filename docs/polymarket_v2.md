@@ -1,5 +1,8 @@
 # Polymarket V2 Pipeline
 
+Le parcours pédagogique V2 et son smoke reproductible sont documentés dans
+[v2_notebooks.md](v2_notebooks.md).
+
 The canonical V2 ingestion path is a narrow Polygon RPC event downloader. It
 fetches only the Polymarket V2 exchange logs needed for this repo and writes the
 same JSONL row shape as the Ponder indexer, so the existing `order_filled_v2`

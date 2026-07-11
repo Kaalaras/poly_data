@@ -7,6 +7,8 @@ from poly_data.analysis.punter import (
     entries_only,
     punter_position_timeline,
     punter_view,
+    simulate_copy_bet,
+    simulate_random_cohort,
 )
 
 
@@ -75,3 +77,26 @@ def test_entries_only_filters_to_entry_kind() -> None:
     e = entries_only(timeline)
     assert e.height == 1
     assert e["transactionHash"][0] == "h1"
+
+
+def test_copy_bet_short_wins_and_settles_at_official_resolution() -> None:
+    entry = _trade(10, "M1", "Mk", "leader", "token1", "SELL", "BUY", 0.6, 6, 10, "h1")
+    entries = pl.DataFrame([{**entry, "event_kind": "entry"}])
+    book = pl.DataFrame([_trade(12, "M1", "Mk", "other", "token1", "BUY", "SELL", 0.5, 5, 10, "h2")])
+    outcomes = pl.DataFrame([{"market_id": "M1", "winner_token": "token2", "resolved_at": 90}])
+
+    result = simulate_copy_bet(
+        entries, book, outcomes, {"leader"}, train_end_ts=0, test_end_ts=100,
+        latency_secs=1, fee_bps=0, random_seed=7,
+    )
+
+    assert result.bets["direction"].item() == "SELL"
+    assert result.bets["pnl_usd"].item() > 0
+    assert result.bets["settled_ts"].item() == 90
+    assert result.cashflows["timestamp"].max() == 90
+
+
+def test_random_cohort_is_reproducible() -> None:
+    entries = pl.DataFrame([_trade(1, "M1", "Mk", f"P{i}", "token1", "BUY", "SELL", 0.5, 5, 10, f"h{i}") for i in range(3)])
+
+    assert simulate_random_cohort(entries, seed=3).leaders == simulate_random_cohort(entries, seed=3).leaders

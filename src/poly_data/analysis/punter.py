@@ -14,6 +14,7 @@ This module provides the filter + per-user entry-event detection used by
 """
 from __future__ import annotations
 
+import random
 from dataclasses import dataclass
 
 import polars as pl
@@ -147,9 +148,10 @@ def punter_player_stats(
 class CopyBetResult:
     bets: pl.DataFrame  # one row per executed copy bet
     summary: dict
+    cashflows: pl.DataFrame | None = None
 
 
-def simulate_copy_bet(
+def _simulate_copy_bet_legacy(
     entries: pl.DataFrame,
     all_punter_trades: pl.DataFrame,
     resolutions: pl.DataFrame,
@@ -256,3 +258,76 @@ def simulate_copy_bet(
         ),
     }
     return CopyBetResult(bets=bets, summary=summary)
+
+
+@dataclass(frozen=True)
+class RandomCohortResult:
+    leaders: set[str]
+
+
+def simulate_random_cohort(
+    entries: pl.DataFrame, *, seed: int, n_leaders: int = 1,
+) -> RandomCohortResult:
+    """Choose a reproducible control cohort from eligible leader identities."""
+    candidates = sorted(entries["taker"].unique().to_list())
+    return RandomCohortResult(
+        leaders=set(random.Random(seed).sample(candidates, min(n_leaders, len(candidates)))),
+    )
+
+
+def simulate_copy_bet(
+    entries: pl.DataFrame,
+    all_punter_trades: pl.DataFrame,
+    outcomes: pl.DataFrame,
+    leaders: set[str],
+    *,
+    train_end_ts: int,
+    test_end_ts: int,
+    bankroll: float = 10_000.0,
+    per_bet_frac: float = 0.02,
+    latency_secs: int = 1,
+    fee_bps: float = 0.0,
+    random_seed: int = 0,
+) -> CopyBetResult:
+    """Copy BUY and SELL entries at the next opposite observation, settle at resolution."""
+    del random_seed
+    rows: list[dict[str, object]] = []
+    flows: list[dict[str, float | int]] = []
+    capital = bankroll * per_bet_frac
+    selected = entries.filter(pl.col("taker").is_in(list(leaders))).filter(
+        (pl.col("timestamp") >= train_end_ts) & (pl.col("timestamp") < test_end_ts)
+    ).sort("timestamp")
+    for signal in selected.iter_rows(named=True):
+        direction = str(signal["taker_direction"])
+        candidate = (
+            all_punter_trades
+            .filter((pl.col("market_id") == signal["market_id"])
+                    & (pl.col("nonusdc_side") == signal["nonusdc_side"])
+                    & (pl.col("taker_direction") != direction)
+                    & (pl.col("timestamp") >= int(signal["timestamp"]) + latency_secs)
+                    & (pl.col("timestamp") < test_end_ts))
+            .sort("timestamp").head(1)
+        )
+        outcome = outcomes.filter(pl.col("market_id") == signal["market_id"])
+        if candidate.height == 0 or outcome.height == 0:
+            continue
+        fill_price = float(candidate["price"][0])
+        fill_ts = int(candidate["timestamp"][0])
+        settled_ts = int(outcome["resolved_at"][0])
+        if settled_ts > test_end_ts:
+            continue
+        winner = str(outcome["winner_token"][0])
+        fee = capital * fee_bps / 10_000
+        if direction == "BUY":
+            shares = capital / fill_price
+            payoff = shares if winner == signal["nonusdc_side"] else 0.0
+            pnl = payoff - capital - fee
+        else:
+            shares = capital / max(1 - fill_price, 1e-9)
+            payoff = capital + shares * (fill_price - (1.0 if winner == signal["nonusdc_side"] else 0.0)) - fee
+            pnl = payoff - capital
+        rows.append({"leader": signal["taker"], "market_id": signal["market_id"], "token_side": signal["nonusdc_side"], "direction": direction, "signal_ts": signal["timestamp"], "fill_ts": fill_ts, "settled_ts": settled_ts, "capital_reserved": capital, "fill_price": fill_price, "pnl_usd": pnl, "resolved": True})
+        flows.extend([{"timestamp": fill_ts, "amount_usd": -capital - fee}, {"timestamp": settled_ts, "amount_usd": payoff}])
+    bets = pl.DataFrame(rows) if rows else pl.DataFrame(schema={"direction": pl.String, "signal_ts": pl.Int64, "fill_ts": pl.Int64, "settled_ts": pl.Int64, "capital_reserved": pl.Float64, "fill_price": pl.Float64, "pnl_usd": pl.Float64, "resolved": pl.Boolean})
+    cashflows = pl.DataFrame(flows) if flows else pl.DataFrame(schema={"timestamp": pl.Int64, "amount_usd": pl.Float64})
+    return CopyBetResult(bets=bets, cashflows=cashflows, summary={"n_bets": bets.height, "total_pnl_usd": float(bets["pnl_usd"].sum()) if bets.height else 0.0})

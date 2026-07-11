@@ -85,6 +85,7 @@ def supported_notebooks() -> tuple[Path, ...]:
         examples / "03-toy-backtest.ipynb",
         examples / "04-benchmark-polars-vs-duckdb.ipynb",
         examples / "05-ml-dataset-and-baseline.ipynb",
+        examples / "06-copy-betting.ipynb",
     )
 
 

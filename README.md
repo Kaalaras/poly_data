@@ -1,6 +1,11 @@
 Partitioned Parquet pipeline for fetching, processing, and analyzing
 Polymarket trading data. Cross-platform (Linux + Windows + macOS).
 
+## Parcours de notebooks V2
+
+Voir [docs/v2_notebooks.md](docs/v2_notebooks.md). Pour régénérer la fixture et
+exécuter les sept notebooks : `uv run python scripts/smoke_all_notebooks.py`.
+
 - `markets` — Polymarket markets metadata
 - `market_refreshes` — append-only snapshots for updated market metadata
 - `missing_markets` — markets discovered while processing trades
