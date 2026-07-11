@@ -80,7 +80,7 @@ class ParquetStore:
         if not target.is_dir():
             return pl.DataFrame().lazy()
 
-        files = list(target.rglob("*.parquet"))
+        files = self.partition_files(source, year=year, month=month)
         if not files:
             return pl.DataFrame().lazy()
 
@@ -106,6 +106,24 @@ class ParquetStore:
             [pl.scan_parquet(str(f), hive_partitioning=True) for f in files],
             how="diagonal_relaxed",
         )
+
+    def partition_files(
+        self,
+        source: str,
+        year: int | None = None,
+        month: int | None = None,
+    ) -> list[Path]:
+        """Return Parquet files for one source or optional hive partition."""
+        source_dir = self.root / source
+        if not source_dir.is_dir():
+            return []
+        if year is not None and month is not None:
+            target = source_dir / f"year={year}" / f"month={month}"
+        elif year is not None:
+            target = source_dir / f"year={year}"
+        else:
+            target = source_dir
+        return sorted(target.rglob("*.parquet")) if target.is_dir() else []
 
     def scan_markets_all(self) -> pl.LazyFrame:
         """Scan canonical and discovered markets as one de-duplicated source."""

@@ -2199,6 +2199,7 @@ dependencies = [
     { name = "huggingface-hub" },
     { name = "pandas-stubs" },
     { name = "polars" },
+    { name = "psutil" },
     { name = "pyarrow" },
     { name = "requests" },
     { name = "rich" },
@@ -2210,7 +2211,6 @@ analysis = [
     { name = "duckdb" },
     { name = "matplotlib" },
     { name = "nbclient" },
-    { name = "psutil" },
     { name = "scikit-learn", version = "1.7.2", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.11'" },
     { name = "scikit-learn", version = "1.8.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.11'" },
     { name = "seaborn" },
@@ -2226,11 +2226,6 @@ dev = [
     { name = "ruff" },
 ]
 
-[package.dev-dependencies]
-dev = [
-    { name = "psutil" },
-]
-
 [package.metadata]
 requires-dist = [
     { name = "duckdb", marker = "extra == 'analysis'", specifier = ">=1.0" },
@@ -2242,7 +2237,7 @@ requires-dist = [
     { name = "nbstripout", marker = "extra == 'dev'", specifier = ">=0.7" },
     { name = "pandas-stubs", specifier = "~=2.3.3" },
     { name = "polars", specifier = ">=0.20,<2.0" },
-    { name = "psutil", marker = "extra == 'analysis'", specifier = ">=5.9" },
+    { name = "psutil", specifier = ">=5.9" },
     { name = "pyarrow", specifier = ">=15" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8" },
     { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.12" },
@@ -2256,9 +2251,6 @@ requires-dist = [
     { name = "xgboost", marker = "extra == 'analysis'", specifier = ">=2.0" },
 ]
 provides-extras = ["dev", "analysis"]
-
-[package.metadata.requires-dev]
-dev = [{ name = "psutil", specifier = ">=7.1.0" }]
 
 [[package]]
 name = "prometheus-client"

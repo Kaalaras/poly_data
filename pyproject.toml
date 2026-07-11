@@ -13,6 +13,7 @@ dependencies = [
     "requests>=2.31",
     "huggingface-hub>=0.20",
     "rich>=13",
+    "psutil>=5.9",
     "pandas-stubs~=2.3.3",
     "truststore>=0.10.4",
 ]
@@ -31,7 +32,6 @@ analysis = [
   "duckdb>=1.0",
   "matplotlib>=3.8",
   "seaborn>=0.13",
-  "psutil>=5.9",
   "xgboost>=2.0",
   "scikit-learn>=1.4",
   "nbclient>=0.10",
@@ -54,8 +54,3 @@ addopts = "-ra"
 [tool.ruff]
 line-length = 100
 target-version = "py310"
-
-[dependency-groups]
-dev = [
-    "psutil>=7.1.0",
-]

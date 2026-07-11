@@ -134,6 +134,20 @@ def test_cli_benchmark_polygon_rpc_prints_json(tmp_path: Path, mocker, capsys) -
     assert '"recommended_chunk_size": 1000' in capsys.readouterr().out
 
 
+def test_cli_benchmark_lake_prints_json(tmp_path: Path, mocker, capsys) -> None:
+    mocker.patch(
+        "poly_data.cli.benchmark_source",
+        return_value={"rows": 2, "files": 1, "bytes": 100, "seconds": 0.1},
+    )
+
+    code = main([
+        "benchmark-lake", "--data-root", str(tmp_path / "data"), "--source", "trades",
+    ])
+
+    assert code == 0
+    assert '"rows": 2' in capsys.readouterr().out
+
+
 def test_cli_process_v2_discovers_v2_missing_markets(tmp_path: Path, mocker) -> None:
     discover = mocker.patch("poly_data.cli._discover_and_fetch_missing_tokens", return_value=0)
     process = mocker.patch("poly_data.cli.process_trades", return_value=3)

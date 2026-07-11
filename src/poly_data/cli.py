@@ -7,6 +7,7 @@ import os
 import sys
 from pathlib import Path
 
+from poly_data.benchmark import benchmark_source
 from poly_data.compact.monthly import compact_all
 from poly_data.distribute.huggingface import push_snapshot
 from poly_data.ingest.discover import discover_and_fetch
@@ -121,6 +122,9 @@ def _build_parser() -> argparse.ArgumentParser:
     bench.add_argument("--span", action="append", type=int, default=None,
                        help="block span to test; repeat to override defaults")
     bench.add_argument("--timeout", type=float, default=15.0)
+    lake_bench = sub.add_parser("benchmark-lake", parents=[common],
+                                help="benchmark a local Parquet source")
+    lake_bench.add_argument("--source", required=True, help="source to scan")
 
     c = sub.add_parser("compact", parents=[common],
                        help="compact month partitions")
@@ -232,6 +236,10 @@ def main(argv: list[str] | None = None) -> int:
             indent=2,
             sort_keys=True,
         ))
+        return 0
+
+    if ns.cmd == "benchmark-lake":
+        print(json.dumps(benchmark_source(store, ns.source), indent=2, sort_keys=True))
         return 0
 
     if ns.cmd == "process":
