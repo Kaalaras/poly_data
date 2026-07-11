@@ -81,6 +81,8 @@ def supported_notebooks() -> tuple[Path, ...]:
     return (
         examples / "00-v2-lake-quickstart.ipynb",
         examples / "01-v2-lake-discovery.ipynb",
+        examples / "02-v2-wallet-analysis.ipynb",
+        examples / "03-toy-backtest.ipynb",
     )
 
 
