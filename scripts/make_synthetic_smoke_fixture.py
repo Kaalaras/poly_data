@@ -1,20 +1,17 @@
-"""Generate a synthetic data_smoke/ fixture for nb04 / nb05 smoke tests.
-
-Used when no real `data/` directory is available. Writes orderFilled +
-markets parquets large enough to exercise the ML pipeline (build_dataset
-needs window_days+horizon_days+ of history and a panel of active players).
-"""
+"""Generate a deterministic V2-only ``data_smoke/`` lake for the notebooks."""
 from __future__ import annotations
 
 import random
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
 import polars as pl
 
+from poly_data.dimensions import refresh_market_dimensions
+from poly_data.ingest.outcomes import refresh_market_outcomes
 from poly_data.io.parquet_store import ParquetStore
 from poly_data.process.trades import process_trades
-
 
 SEED = 1234
 N_MARKETS = 60
@@ -24,25 +21,31 @@ N_DAYS = 35
 START = int(datetime(2025, 1, 1, tzinfo=timezone.utc).timestamp())
 
 
-def main() -> None:
+def build_fixture(root: Path) -> ParquetStore:
+    """Build a V2-only fixture and return its populated Parquet store."""
     rng = random.Random(SEED)
-    root = Path(__file__).resolve().parents[1] / "data_smoke"
     if root.exists():
-        # Wipe so reruns are deterministic.
-        import shutil
         shutil.rmtree(root)
     store = ParquetStore(root)
 
-    # Markets — split across 2 categories so notebook category-pick has signal.
-    cats = ["Sports", "Politics"]
-    market_rows = []
+    winners = {
+        f"M{i:04d}": ("token1" if rng.random() < 0.55 else "token2")
+        for i in range(N_MARKETS)
+    }
+    resolved_markets = {f"M{i:04d}" for i in range(N_MARKETS) if i % 5 != 0}
+
+    # Gamma-like market metadata.  A deterministic subset stays unresolved so
+    # outcome-aware examples can demonstrate censoring rather than invent labels.
+    categories = ["Sports", "Politics"]
+    market_rows: list[dict[str, object]] = []
     for i in range(N_MARKETS):
-        # Most close before final ts so target labels become YES/NO, not PASS.
-        close_offset_days = rng.randint(20, 30)
-        closed_ts = START + close_offset_days * 86400
+        market_id = f"M{i:04d}"
+        close_ts = START + rng.randint(20, 30) * 86400
+        is_resolved = market_id in resolved_markets
+        winner = winners[market_id]
         market_rows.append({
             "createdAt": "2025-01-01T00:00:00Z",
-            "id": f"M{i:04d}",
+            "id": market_id,
             "question": f"market {i}",
             "answer1": "Yes",
             "answer2": "No",
@@ -52,83 +55,87 @@ def main() -> None:
             "token2": f"t{i}b",
             "condition_id": f"c{i}",
             "volume": "0",
-            "ticker": f"M{i:04d}",
-            "closedTime": datetime.fromtimestamp(closed_ts, tz=timezone.utc)
-                            .strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "ticker": market_id,
+            "closedTime": (
+                datetime.fromtimestamp(close_ts, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                if is_resolved else ""
+            ),
             "timestamp": START,
-            "category": cats[i % len(cats)],
+            "observed_at": close_ts if is_resolved else START + N_DAYS * 86400,
+            "category": categories[i % len(categories)],
+            "outcomePrices": (
+                '["1", "0"]' if winner == "token1" else '["0", "1"]'
+            ) if is_resolved else '["0.5", "0.5"]',
+            "closed": is_resolved,
+            "resolutionSource": "synthetic-official" if is_resolved else "",
+            "umaResolutionStatus": "resolved" if is_resolved else "",
         })
     store.append("markets", pl.DataFrame(market_rows))
+    refresh_market_dimensions(store)
+    refresh_market_outcomes(store)
 
-    # Per-market intended winner so we can drive prices to that side at the end.
-    winners = {f"M{i:04d}": ("token1" if rng.random() < 0.55 else "token2")
-               for i in range(N_MARKETS)}
-
-    # Players — pick a "skilled" core that wins more often.
-    skilled = {f"P{i:04d}" for i in range(40)}
+    skilled = [f"P{i:04d}" for i in range(40)]
     all_players = [f"P{i:04d}" for i in range(N_PLAYERS)]
-
-    # OrderFilled events. id MUST sort lexicographically with timestamp for
-    # process_trades resume semantics to work (we use timestamp + counter).
-    of_rows: list[dict] = []
-    eid = 0
+    events: list[dict[str, object]] = []
+    event_id = 0
     for day in range(N_DAYS):
         day_ts = START + day * 86400
-        # Last 2 days: skew prices toward the market's intended winner so
-        # last_price >= 0.98 → market_resolution emits a winner_token.
-        finalize = day >= N_DAYS - 2
         for _ in range(N_TRADES_PER_DAY):
-            mid = f"M{rng.randint(0, N_MARKETS - 1):04d}"
-            ts = day_ts + rng.randint(0, 86399)
+            market_id = f"M{rng.randint(0, N_MARKETS - 1):04d}"
+            timestamp = day_ts + rng.randint(0, 86399)
             buyer = rng.choice(all_players)
             seller = rng.choice(all_players)
             if buyer == seller:
                 continue
-            # Bias buyer to "skilled" + correct side near close.
-            if finalize:
-                side = winners[mid]
-                buyer = rng.choice(list(skilled))
-            else:
-                side = "token1" if rng.random() < 0.55 else "token2"
-
-            if finalize:
+            near_resolution = day >= N_DAYS - 2 and market_id in resolved_markets
+            token_side = winners[market_id] if near_resolution else (
+                "token1" if rng.random() < 0.55 else "token2"
+            )
+            if near_resolution:
+                buyer = rng.choice(skilled)
                 price = rng.uniform(0.985, 0.999)
             else:
                 price = rng.uniform(0.10, 0.90)
-
-            tok_amount_units = rng.randint(20, 200)  # 20..200 outcome tokens
-            usd_units = round(tok_amount_units * price, 6)
-
-            # Side determines which clob token id is the non-USDC asset.
-            if side == "token1":
-                non_usdc_asset = f"t{int(mid[1:])}a"
-            else:
-                non_usdc_asset = f"t{int(mid[1:])}b"
-
-            # In our synthetic flow buyer == taker, seller == maker, taker
-            # pays USDC → takerAssetId = "0". Amounts in 6-decimal units.
-            of_rows.append({
-                "id": f"o{ts:010d}-{eid:08d}",
-                "timestamp": ts,
-                "maker": seller,
-                "makerAssetId": non_usdc_asset,
-                "makerAmountFilled": str(int(tok_amount_units * 10**6)),
-                "taker": buyer,
-                "takerAssetId": "0",
-                "takerAmountFilled": str(int(usd_units * 10**6)),
-                "transactionHash": f"0x{eid:064x}",
+            shares = float(rng.randint(20, 200))
+            amount_usdc = round(shares * price, 6)
+            asset = f"t{int(market_id[1:])}{'a' if token_side == 'token1' else 'b'}"
+            events.append({
+                "id": f"evt-{timestamp:010d}-{event_id:08d}",
+                "timestamp": timestamp,
+                "block_number": 70_000_000 + event_id,
+                "block_timestamp": timestamp,
+                "transaction_hash": f"0x{event_id:064x}",
+                "user_id": seller,
+                "asset": asset,
+                "amount_usdc": amount_usdc,
+                "amount_shares": shares,
+                "price": price,
+                "side": "SELL",
+                "order_hash": f"0xorder{event_id:060x}",
+                "counterparty_id": buyer,
+                "order_type": "maker",
+                "fee": 0.0,
+                "builder": "",
             })
-            eid += 1
+            event_id += 1
 
-    of_df = pl.DataFrame(of_rows)
-    store.append("orderFilled", of_df)
-    print(f"wrote markets={len(market_rows)}, orderFilled={len(of_rows)}")
+    store.append("order_filled_v2", pl.DataFrame(events))
+    derived = process_trades(store, source="v2")
+    if derived != len(events):
+        raise RuntimeError(f"expected {len(events)} V2 trades, derived {derived}")
+    return store
 
-    # Derive trades.
-    n = process_trades(store)
-    print(f"derived trades: {n}")
 
-    print(f"\nfixture ready at {root}")
+def main() -> None:
+    root = Path(__file__).resolve().parents[1] / "data_smoke"
+    store = build_fixture(root)
+    print(
+        "fixture ready: "
+        f"markets={store.scan('markets_current').collect().height}, "
+        f"v2_events={store.scan('order_filled_v2').collect().height}, "
+        f"trades={store.scan('trades').collect().height}, "
+        f"outcomes={store.scan('market_outcomes').collect().height} at {root}"
+    )
 
 
 if __name__ == "__main__":
