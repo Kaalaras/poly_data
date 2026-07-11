@@ -17,7 +17,7 @@ def _write_csv(path: Path, rows: list[dict]) -> None:
 
 
 def test_migrate_orderfilled_csv_to_parquet(tmp_path: Path) -> None:
-    src = tmp_path / "goldsky" / "orderFilled.csv"
+    src = tmp_path / "orderFilled.csv"
     _write_csv(src, [
         {
             "timestamp": 1700000000, "maker": "0xa", "makerAssetId": "0",

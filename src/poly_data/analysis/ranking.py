@@ -13,8 +13,14 @@ def score_C(c: Callable[[str], pl.Expr]) -> pl.Expr:
 
 
 def score_money_ratio(c: Callable[[str], pl.Expr]) -> pl.Expr:
-    """total_won_usd / (total_lost_usd + 1e-6)."""
-    return c("total_won_usd") / (c("total_lost_usd") + 1e-6)
+    """total_won_usd / max(total_lost_usd, 1.0).
+
+    A USD-scale floor of $1 keeps the ratio finite when ``total_lost_usd`` is
+    zero (or rounds to it). The previous ``+ 1e-6`` epsilon was sub-dollar and
+    produced explosive scores for any player who never lost — making winners
+    with $0 lost rank above winners with millions made.
+    """
+    return c("total_won_usd") / pl.max_horizontal(c("total_lost_usd"), pl.lit(1.0))
 
 
 def score_win_rate(c: Callable[[str], pl.Expr]) -> pl.Expr:

@@ -150,11 +150,10 @@ def _features_for_window(window_trades: pl.DataFrame,
              pl.len().cast(pl.Float64)).alias("consensus_score")
         )
     )
-    out = by_market.join(n_active, on="market_id", how="left") \
-                   .join(consensus, on="market_id", how="left")
-    if "consensus_score" not in out.columns:
-        out = out.with_columns(pl.lit(None, dtype=pl.Float64).alias("consensus_score"))
-    return out
+    return (
+        by_market.join(n_active, on="market_id", how="left")
+                 .join(consensus, on="market_id", how="left")
+    )
 
 
 def build_dataset(
@@ -168,6 +167,15 @@ def build_dataset(
     min_active_frac: float = 0.5,
     test_frac: float = 0.20,
 ) -> tuple[pl.DataFrame, pl.DataFrame, dict[str, Any]]:
+    if not 0.0 <= min_active_frac <= 1.0:
+        raise ValueError(
+            f"min_active_frac must be in [0, 1], got {min_active_frac!r}"
+        )
+    if not 0.0 < test_frac < 1.0:
+        raise ValueError(f"test_frac must be in (0, 1), got {test_frac!r}")
+    if window_days <= 0 or horizon_days <= 0:
+        raise ValueError("window_days and horizon_days must be positive")
+
     n_players = top_n_players.height
     player_ids = set(top_n_players["player"].to_list())
 
@@ -178,10 +186,13 @@ def build_dataset(
         return _empty_result(category, window_days, horizon_days,
                              min_active_frac, n_players)
 
+    # Build polars Series once and reuse, instead of re-hashing set→list per call.
+    market_ids_list = list(market_ids)
+    player_ids_list = list(player_ids)
     filtered = (
-        trades.filter(pl.col("market_id").is_in(list(market_ids)))
-              .filter(pl.col("maker").is_in(list(player_ids))
-                      | pl.col("taker").is_in(list(player_ids)))
+        trades.filter(pl.col("market_id").is_in(market_ids_list))
+              .filter(pl.col("maker").is_in(player_ids_list)
+                      | pl.col("taker").is_in(player_ids_list))
     ).collect()
 
     if filtered.height == 0:
@@ -280,9 +291,20 @@ def build_dataset(
 
     unique_dates = panel["decision_date"].unique().sort().to_list()
     if len(unique_dates) < 2:
-        split_idx = max(0, len(unique_dates) - 1)
-    else:
-        split_idx = max(1, int(len(unique_dates) * (1 - test_frac)))
+        # Single decision date — no temporal split is possible. Return the
+        # row(s) as test data (back-compat with downstream consumers that
+        # expect both frames present, even when one is empty).
+        empty_train = panel.head(0)
+        meta = _meta_dict(
+            category=category, window_days=window_days, horizon_days=horizon_days,
+            min_active_frac=min_active_frac, n_players=n_players,
+            split_date=str(unique_dates[0]) if unique_dates else "",
+            n_train=0, n_test=panel.height,
+            train=empty_train, test=panel,
+        )
+        return empty_train, panel, meta
+
+    split_idx = max(1, int(len(unique_dates) * (1 - test_frac)))
     split_date = unique_dates[split_idx] if split_idx < len(unique_dates) \
         else unique_dates[-1]
 

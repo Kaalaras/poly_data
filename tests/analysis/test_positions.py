@@ -8,7 +8,6 @@ from poly_data.analysis.positions import (
     expand_to_positions,
     label_outcomes,
     market_resolution,
-    player_aggregates,
     positions_table,
 )
 

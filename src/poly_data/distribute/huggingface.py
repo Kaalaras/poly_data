@@ -31,12 +31,16 @@ def push_snapshot(
     tag = snapshot_tag or datetime.now(timezone.utc).strftime("%Y-%m-%d")
     commit_message = f"poly_data snapshot {tag}"
 
-    url = api.upload_large_folder(
+    # `upload_large_folder` returns None (or a CommitInfo on some hub-client
+    # versions); neither is a useful URL. Build the canonical dataset URL
+    # ourselves so callers always get something dereferenceable.
+    api.upload_large_folder(
         repo_id=repo_id,
         repo_type="dataset",
         folder_path=str(store.root),
         allow_patterns=allow,
         commit_message=commit_message,
     )
+    url = f"https://huggingface.co/datasets/{repo_id}"
     logger.info("pushed snapshot to %s", url)
     return url

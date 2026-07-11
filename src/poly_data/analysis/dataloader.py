@@ -39,7 +39,7 @@ def load(category: str, *, window_days: int, horizon_days: int,
         if not p.is_file():
             raise FileNotFoundError(f"required file missing: {p}")
 
-    meta = json.loads(meta_path.read_text())
+    meta = json.loads(meta_path.read_text(encoding="utf-8"))
     feature_names: list[str] = list(meta["feature_names"])
 
     train = pl.read_parquet(train_path)

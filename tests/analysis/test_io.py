@@ -21,6 +21,14 @@ def test_rss_guard_raises_on_breach():
             del buf
 
 
+def test_rss_guard_cap_none_disables_assertion():
+    """cap_mb=None means "track only, don't assert"."""
+    with ioh.rss_guard("disabled", cap_mb=None):
+        # Allocating well past any reasonable cap should NOT raise.
+        buf = bytearray(50 * 1024 * 1024)
+        del buf
+
+
 def test_open_duckdb_applies_settings(tmp_path: Path):
     con = ioh.open_duckdb(memory_limit="1GB", threads=2,
                           temp_directory=tmp_path / "ddb_tmp")

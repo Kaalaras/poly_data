@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 
 CSV_LOCATIONS = {
-    "orderFilled": "goldsky/orderFilled.csv",
+    "orderFilled": "orderFilled.csv",
     "markets": "markets.csv",
     "missing_markets": "missing_markets.csv",
     "trades": "processed/trades.csv",

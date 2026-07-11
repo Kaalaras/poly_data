@@ -1,6 +1,6 @@
 """Stream-decompress orderFilled_complete.csv.xz into the v2 Parquet store.
 
-Reads the legacy goldsky orderFilled CSV directly from its `.xz` archive
+Reads the legacy V1 orderFilled CSV directly from its `.xz` archive
 (no full decompression to disk) and writes Hive-partitioned Parquet under
 ``<store>/orderFilled/year=YYYY/month=MM/``.
 

@@ -15,7 +15,7 @@ DEFAULT_CAP_MB = 2048
 
 
 @contextmanager
-def rss_guard(label: str, *, cap_mb: int = DEFAULT_CAP_MB,
+def rss_guard(label: str, *, cap_mb: int | None = DEFAULT_CAP_MB,
               sample_ms: int | None = None) -> Iterator[None]:
     """Postmortem RSS audit. Raises MemoryError on exit if cap_mb was exceeded above baseline.
 
@@ -36,6 +36,14 @@ def rss_guard(label: str, *, cap_mb: int = DEFAULT_CAP_MB,
     ignored — the shared sampler runs at a fixed cadence.
     """
     del sample_ms  # accepted for back-compat, ignored
+
+    # cap_mb=None disables the assertion entirely — context manager just
+    # yields without instrumentation. Useful for smoke runs where the
+    # exact RSS ceiling isn't meaningful (peak depends on dataset scale).
+    if cap_mb is None:
+        yield
+        return
+
     proc = psutil.Process()
     gc.collect()
     baseline = proc.memory_info().rss

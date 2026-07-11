@@ -16,11 +16,13 @@ def test_push_snapshot_calls_upload_large_folder(tmp_path: Path,
     store.append("orderFilled", sample_orderfilled_df)
 
     api = MagicMock()
-    api.upload_large_folder.return_value = "https://hf.co/datasets/u/p/commit/abc"
+    # upload_large_folder returns None on current hub-client; we now build the
+    # URL ourselves rather than trusting whatever it returns.
+    api.upload_large_folder.return_value = None
     mocker.patch("poly_data.distribute.huggingface.HfApi", return_value=api)
 
     url = push_snapshot(store, repo_id="u/p")
-    assert url == "https://hf.co/datasets/u/p/commit/abc"
+    assert url == "https://huggingface.co/datasets/u/p"
 
     args, kwargs = api.upload_large_folder.call_args
     assert kwargs["repo_id"] == "u/p"
