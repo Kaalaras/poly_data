@@ -19,6 +19,8 @@ Core sources:
 
 - `markets`: Polymarket market metadata.
 - `missing_markets`: market metadata discovered while processing trades.
+- `markets_current`: materialized latest market snapshot.
+- `market_assets`: materialized V2 asset-to-market dimension.
 - `orderFilled`: legacy V1 raw fills, read-only.
 - `order_filled_v2`: canonical raw V2 fill events.
 - `trades`: normalized maker-fill trades.
@@ -31,6 +33,8 @@ Existing pipeline stages:
 - Discover missing market metadata from token ids.
 - Process raw fills into normalized `trades`.
 - Compact monthly partitions with source-specific deduplication keys.
+- Maintain partition manifests and compact only partitions above operational
+  file-count or byte thresholds.
 - Publish dataset snapshots to Hugging Face Hub.
 - Build analysis datasets from expert/player activity windows.
 
@@ -40,6 +44,8 @@ Existing quality controls:
 - Validation on V2 import.
 - Deduplication during import and monthly compaction.
 - Cursor files for resumable ingestion and processing.
+- Atomic partition manifests with row counts, bytes, timestamp bounds, and a
+  schema hash; manifest-absent legacy partitions remain readable.
 - Unit tests covering store layout, contracts, V2 import, trade processing, ML
   dataset generation, and dataloader behavior.
 
@@ -133,8 +139,7 @@ Given an event and data available at decision time, should we bet or pass?
 
 1. Add a `poly-data validate` command that validates selected sources and emits
    JSON quality reports.
-2. Add dataset manifests under `data/_metadata/` for source snapshots, partition
-   stats, row counts, min/max timestamps, and code version.
+2. Extend partition manifests with source snapshot and code-version provenance.
 3. Add explicit bronze/silver/gold source naming or document the current source
    mapping until a migration is needed.
 4. Add a `market_outcomes` silver table so labels no longer depend only on the

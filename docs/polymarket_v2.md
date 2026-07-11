@@ -46,7 +46,7 @@ Import and process:
 uv run poly-data import-ponder-v2 data/_polygon_rpc/order_filled_v2_86126998_<end>.jsonl
 uv run poly-data compact --source order_filled_v2
 uv run poly-data process --source v2
-uv run poly-data compact --source trades
+uv run poly-data compact --source trades --due
 uv run poly-data v2-status
 ```
 
@@ -56,8 +56,9 @@ For the continuous canonical flow, use:
 uv run poly-data update-all
 ```
 
-`update-all` downloads direct V2 logs before importing, discovering market
-metadata, and deriving trades. It does not ingest Ponder JSONL.
+`update-all` downloads direct V2 logs before importing, discovering V2 market
+metadata, refreshing compact market dimensions, and deriving V2 trades. It
+does not scan `orderFilled` or ingest Ponder JSONL.
 
 Data model:
 
@@ -66,13 +67,25 @@ Data model:
   `transaction_hash:log_index`.
 - `market_refreshes`: append-only snapshots of changed Gamma metadata; readers
   resolve the most recently observed value for each market ID.
+- `markets_current`: one latest validated row per market ID, with its timestamp
+  set to the observation time when available.
+- `market_assets`: two rows per binary market (`asset`, `market_id`,
+  `token_side`) used by the V2 join; it avoids scanning historical V1 fills.
 - `trades`: normalized V1-like maker fills only. V2 taker aggregate rows are not
   flipped into synthetic maker/taker trades.
 
 `poly-data process --source v2` resolves missing market metadata from the V2
-`asset` column before joining. If eligible maker-role fills still have
+`asset` column before joining. It refreshes `market_assets` before processing
+and falls back to legacy market snapshots only when that dimension is absent.
+If eligible maker-role fills still have
 unresolved market metadata after discovery, processing fails without advancing
 `data/trades_v2/cursor.json`.
+
+Every append, lazy V2 trade write, and compaction publishes a partition
+manifest at `data/_metadata/<source>/year=YYYY/month=MM.json`. The scanner uses
+valid manifests and falls back to direct discovery for legacy partitions. Use
+`poly-data compact --due` to compact only partitions with more than 16 run
+files or more than 512 MiB of run data.
 
 Ponder remains available as an open-source validation/reference indexer in
 `indexers/ponder-polymarket-v2`. Use it for bounded comparisons, but do not

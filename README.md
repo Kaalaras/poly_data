@@ -4,11 +4,14 @@ Polymarket trading data. Cross-platform (Linux + Windows + macOS).
 - `markets` — Polymarket markets metadata
 - `market_refreshes` — append-only snapshots for updated market metadata
 - `missing_markets` — markets discovered while processing trades
+- `markets_current` — latest validated snapshot for each market
+- `market_assets` — compact `asset -> market/côté` dimension for V2 joins
 - `orderFilled` — legacy local V1 order-filled events
 - `order_filled_v2` — canonical Polymarket V2 order-filled events
 - `trades` — V1-style normalized maker-fill trades
 
 All data lives under `data/<source>/year=YYYY/month=MM/{run-*.parquet,month.parquet}`.
+Partition manifests live under `data/_metadata/<source>/year=YYYY/month=MM.json`.
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh         # macOS / Linux
@@ -22,6 +25,9 @@ uv run poly-data download-v2-logs       # download narrow Polymarket V2 logs
 uv run poly-data import-ponder-v2        # import Ponder JSONL into Parquet
 uv run poly-data update-all              # markets + canonical V2 RPC logs + process
 uv run poly-data compact                 # nightly: dedup + compact month dirs
+uv run poly-data compact --due           # compact only partitions above thresholds
+uv run poly-data refresh-market-dimensions
+uv run poly-data benchmark-lake --source order_filled_v2
 uv run poly-data push-hf --repo USER/REPO  # publish snapshot to HF Hub
 ```
 
@@ -31,9 +37,11 @@ uv run poly-data push-hf --repo USER/REPO  # publish snapshot to HF Hub
 | `benchmark-polygon-rpc` | Benchmark RPC endpoints for V2 event logs       |
 | `download-v2-logs`| Download V2 event logs directly from Polygon RPC      |
 | `import-ponder-v2`| Import Ponder V2 JSONL into `order_filled_v2`         |
+| `refresh-market-dimensions` | Materialize `markets_current` and `market_assets` |
 | `process`         | Derive `trades` from local V1/V2 raw fill sources     |
 | `v2-status`       | Summarize raw V2, derived trades, and API freshness   |
-| `compact`         | Rewrite month partitions (dedup, single file)         |
+| `compact`         | Rewrite month partitions; `--due` uses manifest thresholds |
+| `benchmark-lake`  | Measure a local source scan, file count, bytes, and RSS |
 | `push-hf`         | Upload snapshot to HuggingFace Hub                    |
 | `update-all`      | Canonical flow: markets -> V2 RPC download -> import -> discover -> process |
 
