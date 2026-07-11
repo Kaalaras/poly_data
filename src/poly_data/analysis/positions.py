@@ -204,3 +204,29 @@ def compute_player_stats(trades: pl.LazyFrame, *,
     last_for_join = last.rename({"nonusdc_side": "token_side"})
     labelled = label_outcomes(pos, res, last_prices=last_for_join)
     return player_aggregates(labelled)
+
+
+def compute_player_stats_from_outcomes(
+    trades: pl.LazyFrame,
+    outcomes: pl.DataFrame,
+    *,
+    player_side: PlayerSide = "both",
+) -> pl.DataFrame:
+    """Compute player scores from official resolutions, never terminal prices."""
+    positions = positions_table(trades, player_side=player_side)
+    official = outcomes.select(["market_id", "winner_token"])
+    labelled = positions.join(official, on="market_id", how="left").with_columns([
+        pl.when(pl.col("winner_token").is_null()).then(pl.lit("open"))
+        .when(pl.col("net_tokens") == 0).then(pl.lit("flat"))
+        .when(
+            ((pl.col("net_tokens") > 0) & (pl.col("token_side") == pl.col("winner_token")))
+            | ((pl.col("net_tokens") < 0) & (pl.col("token_side") != pl.col("winner_token")))
+        ).then(pl.lit("won"))
+        .otherwise(pl.lit("lost")).alias("outcome"),
+        (
+            pl.col("net_usd")
+            + pl.col("net_tokens")
+            * (pl.col("token_side") == pl.col("winner_token")).cast(pl.Float64)
+        ).alias("pnl_usd"),
+    ])
+    return player_aggregates(labelled)

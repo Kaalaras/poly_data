@@ -160,6 +160,7 @@ def build_dataset(
     trades: pl.LazyFrame,
     markets: pl.DataFrame,
     top_n_players: pl.DataFrame,
+    outcomes: pl.DataFrame | None = None,
     *,
     category: str,
     window_days: int = 7,
@@ -215,15 +216,27 @@ def build_dataset(
         return _empty_result(category, window_days, horizon_days,
                              min_active_frac, n_players)
 
-    winners = market_resolution(trades)
-    closed_lookup = (
-        markets_in_cat.with_columns(
-            pl.col("closedTime").map_elements(_parse_iso_to_unix,
-                                              return_dtype=pl.Int64)
-              .alias("closed_ts")
-        ).select(["id", "closed_ts", "ticker", "question"])
-        .rename({"id": "market_id"})
-    )
+    if outcomes is None:
+        winners = market_resolution(trades)
+        closed_lookup = (
+            markets_in_cat.with_columns(
+                pl.col("closedTime").map_elements(_parse_iso_to_unix,
+                                                  return_dtype=pl.Int64)
+                  .alias("closed_ts")
+            ).select(["id", "closed_ts", "ticker", "question"])
+            .rename({"id": "market_id"})
+        )
+    else:
+        winners = outcomes.select(["market_id", "winner_token"])
+        closed_lookup = (
+            markets_in_cat.select(["id", "ticker", "question"])
+            .rename({"id": "market_id"})
+            .join(
+                outcomes.select(["market_id", pl.col("resolved_at").alias("closed_ts")]),
+                on="market_id",
+                how="left",
+            )
+        )
 
     threshold = math.ceil(min_active_frac * n_players)
     # Sort once + binary-search slices, instead of N full-scan filters.
@@ -282,11 +295,17 @@ def build_dataset(
         .otherwise(pl.lit("PASS"))
         .alias("target")
     ])
+    panel = panel.with_columns([
+        (pl.col("target") != "PASS").alias("resolves_within_horizon"),
+        pl.when(pl.col("target") == "YES").then(pl.lit(1))
+        .when(pl.col("target") == "NO").then(pl.lit(0))
+        .otherwise(pl.lit(None, dtype=pl.Int64)).alias("target_binary"),
+    ])
 
     keep_cols = (["decision_date", "market_id", "ticker", "question",
                   "window_start", "window_end"]
                  + FEATURE_NAMES
-                 + ["target", "target_resolved_at"])
+                 + ["target", "target_binary", "resolves_within_horizon", "target_resolved_at"])
     panel = panel.select([c for c in keep_cols if c in panel.columns]).sort("decision_date")
 
     unique_dates = panel["decision_date"].unique().sort().to_list()
@@ -346,7 +365,7 @@ def _meta_dict(*, category, window_days, horizon_days, min_active_frac,
         "target_classes": ["YES", "NO", "PASS"],
         "target_class_counts_train": _counts(train),
         "target_class_counts_test": _counts(test),
-        "data_source": "data/trades + data/markets",
+        "data_source": "trades + markets (market_outcomes when supplied)",
     }
 
 
@@ -363,6 +382,8 @@ def _empty_result(category, window_days, horizon_days, min_active_frac,
     for name in FEATURE_NAMES:
         schema[name] = pl.Float64
     schema["target"] = pl.Utf8
+    schema["target_binary"] = pl.Int64
+    schema["resolves_within_horizon"] = pl.Boolean
     schema["target_resolved_at"] = pl.Datetime
     empty = pl.DataFrame(schema=schema)
     meta = _meta_dict(
