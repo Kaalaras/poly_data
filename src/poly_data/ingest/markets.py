@@ -19,7 +19,8 @@ KEYSET_API_URL = f"{API_URL}/keyset"
 MARKET_COLUMNS = [
     "createdAt", "id", "question", "answer1", "answer2", "neg_risk",
     "market_slug", "token1", "token2", "condition_id", "volume", "ticker",
-    "closedTime", "timestamp", "category",
+    "closedTime", "timestamp", "category", "outcomePrices", "closed",
+    "resolutionSource", "umaResolutionStatus",
 ]
 
 
@@ -77,6 +78,10 @@ def _parse_market(market: dict[str, Any]) -> dict[str, Any] | None:
             "closedTime": str(market.get("closedTime", "")),
             "timestamp": ts_int,
             "category": category,
+            "outcomePrices": str(market.get("outcomePrices", "[]") or "[]"),
+            "closed": bool(market.get("closed", False)),
+            "resolutionSource": str(market.get("resolutionSource", "") or ""),
+            "umaResolutionStatus": str(market.get("umaResolutionStatus", "") or ""),
         }
     except (ValueError, KeyError, IndexError, json.JSONDecodeError, TypeError) as e:
         logger.warning("market parse failed for id=%s: %s",
@@ -134,7 +139,7 @@ def update_markets(store: ParquetStore, *, batch_size: int = 100) -> int:
                 continue
             previous = existing.get(row["id"])
             if previous is None:
-                rows.append(row)
+                rows.append({**row, "observed_at": time.time_ns()})
             elif previous != row:
                 refresh_rows.append({**row, "observed_at": time.time_ns()})
             existing[row["id"]] = row
@@ -202,7 +207,7 @@ def update_missing_tokens(
                 if row["id"] in existing_ids:
                     break
                 existing_ids.add(row["id"])
-                new_rows.append(row)
+                new_rows.append({**row, "observed_at": time.time_ns()})
                 break
             except requests.RequestException:
                 time.sleep(backoff)

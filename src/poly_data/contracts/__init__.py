@@ -19,6 +19,7 @@ _SOURCE_ALIASES = {
     "market_refreshes": "markets",
     "market_assets": "market_assets",
     "markets_current": "markets_current",
+    "market_outcomes": "market_outcomes",
     "trades": "trades",
 }
 

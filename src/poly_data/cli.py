@@ -13,6 +13,7 @@ from poly_data.dimensions import refresh_market_dimensions
 from poly_data.distribute.huggingface import push_snapshot
 from poly_data.ingest.discover import discover_and_fetch
 from poly_data.ingest.markets import update_markets
+from poly_data.ingest.outcomes import refresh_market_outcomes
 from poly_data.ingest.ponder import import_ponder_v2_jsonl
 from poly_data.ingest.polygon_rpc import (
     benchmark_polygon_rpc,
@@ -128,6 +129,8 @@ def _build_parser() -> argparse.ArgumentParser:
     lake_bench.add_argument("--source", required=True, help="source to scan")
     sub.add_parser("refresh-market-dimensions", parents=[common],
                    help="materialize compact market dimensions for V2 processing")
+    sub.add_parser("refresh-market-outcomes", parents=[common],
+                   help="materialize official outcomes for closed binary markets")
 
     c = sub.add_parser("compact", parents=[common],
                        help="compact month partitions")
@@ -250,6 +253,10 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(refresh_market_dimensions(store), indent=2, sort_keys=True))
         return 0
 
+    if ns.cmd == "refresh-market-outcomes":
+        print(json.dumps(refresh_market_outcomes(store), indent=2, sort_keys=True))
+        return 0
+
     if ns.cmd == "process":
         # Discover-and-fetch missing tokens BEFORE deriving trades so the join
         # against `markets`/`missing_markets` resolves token IDs that ingest
@@ -267,7 +274,7 @@ def main(argv: list[str] | None = None) -> int:
         sources = [ns.source] if ns.source else \
             [
                 "orderFilled", "order_filled_v2", "markets", "missing_markets",
-                "market_refreshes", "trades",
+                "market_refreshes", "market_outcomes", "trades",
             ]
         for s in sources:
             (compact_due if ns.due else compact_all)(store, s)
@@ -305,6 +312,7 @@ def main(argv: list[str] | None = None) -> int:
         if n_missing:
             logger.info("update-all: fetched %d missing markets", n_missing)
         refresh_market_dimensions(store)
+        refresh_market_outcomes(store)
         process_trades(store, source="v2")
         return 0
 

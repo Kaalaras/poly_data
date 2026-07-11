@@ -16,6 +16,11 @@
     "ticker": {"dtype": "String", "required": true, "nullable": false},
     "closedTime": {"dtype": "String", "required": true, "nullable": false},
     "timestamp": {"dtype": "Int64", "required": true, "nullable": false, "min": 0},
-    "category": {"dtype": "String", "required": true, "nullable": false}
+    "category": {"dtype": "String", "required": true, "nullable": false},
+    "outcomePrices": {"dtype": "String", "required": false, "nullable": false},
+    "closed": {"dtype": "Boolean", "required": false, "nullable": false},
+    "resolutionSource": {"dtype": "String", "required": false, "nullable": false},
+    "umaResolutionStatus": {"dtype": "String", "required": false, "nullable": false},
+    "observed_at": {"dtype": "Int64", "required": false, "nullable": false, "min": 0}
   }
 }

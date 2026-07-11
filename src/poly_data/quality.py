@@ -15,6 +15,7 @@ KNOWN_SOURCES = (
     "markets",
     "missing_markets",
     "market_refreshes",
+    "market_outcomes",
     "trades",
 )
 

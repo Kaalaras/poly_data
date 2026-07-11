@@ -43,10 +43,22 @@ def _valid_order_filled_v2_df() -> pl.DataFrame:
     }])
 
 
+def _valid_market_outcomes_df() -> pl.DataFrame:
+    return pl.DataFrame([{
+        "market_id": "market-1",
+        "winner_token": "token1",
+        "resolved_at": 1777374041,
+        "observed_at": 1777374042,
+        "resolution_source": "official",
+        "resolution_status": "resolved",
+        "timestamp": 1777374041,
+    }])
+
+
 def test_contract_files_exist_for_core_sources() -> None:
     for source in (
         "markets", "markets_current", "market_assets", "orderfilled",
-        "order_filled_v2", "trades",
+        "order_filled_v2", "market_outcomes", "trades",
     ):
         contract = load_contract(source)
         assert contract["source"] == source
@@ -61,6 +73,13 @@ def test_order_filled_v2_contract_accepts_valid_frame() -> None:
     assert validate_frame(
         _valid_order_filled_v2_df(),
         load_contract("order_filled_v2"),
+    ) == []
+
+
+def test_market_outcomes_contract_accepts_valid_frame() -> None:
+    assert validate_frame(
+        _valid_market_outcomes_df(),
+        load_contract("market_outcomes"),
     ) == []
 
 

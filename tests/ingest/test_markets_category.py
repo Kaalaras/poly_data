@@ -44,3 +44,26 @@ def test_parse_market_empty_category_when_absent():
     row = _parse_market(raw)
     assert row is not None
     assert row["category"] == ""
+
+
+def test_parse_market_preserves_official_resolution_metadata():
+    raw = {
+        "id": "4",
+        "question": "Q",
+        "outcomes": '["Yes","No"]',
+        "outcomePrices": '["1","0"]',
+        "clobTokenIds": '["t1","t2"]',
+        "createdAt": "2024-01-01T00:00:00Z",
+        "closed": True,
+        "closedTime": "2024-02-01T00:00:00Z",
+        "resolutionSource": "official-source",
+        "umaResolutionStatus": "resolved",
+    }
+
+    row = _parse_market(raw)
+
+    assert row is not None
+    assert row["outcomePrices"] == '["1","0"]'
+    assert row["closed"] is True
+    assert row["resolutionSource"] == "official-source"
+    assert row["umaResolutionStatus"] == "resolved"

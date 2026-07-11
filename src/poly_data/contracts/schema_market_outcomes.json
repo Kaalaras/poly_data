@@ -1,0 +1,13 @@
+{
+  "source": "market_outcomes",
+  "unique": [["market_id"]],
+  "columns": {
+    "market_id": {"dtype": "String", "required": true, "nullable": false},
+    "winner_token": {"dtype": "String", "required": true, "nullable": false, "allowed": ["token1", "token2"]},
+    "resolved_at": {"dtype": "Int64", "required": true, "nullable": false, "min": 1},
+    "observed_at": {"dtype": "Int64", "required": true, "nullable": false, "min": 1},
+    "resolution_source": {"dtype": "String", "required": true, "nullable": false},
+    "resolution_status": {"dtype": "String", "required": true, "nullable": false},
+    "timestamp": {"dtype": "Int64", "required": true, "nullable": false, "min": 1}
+  }
+}

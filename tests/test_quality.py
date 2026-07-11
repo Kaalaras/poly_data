@@ -69,6 +69,24 @@ def test_validate_store_missing_source_is_warning(tmp_path: Path) -> None:
     assert report["sources"]["trades"]["warnings"][0]["name"] == "source_presence"
 
 
+def test_validate_store_includes_present_market_outcomes_by_default(tmp_path: Path) -> None:
+    store = ParquetStore(tmp_path / "data")
+    store.append("market_outcomes", pl.DataFrame([{
+        "market_id": "market-1",
+        "winner_token": "token1",
+        "resolved_at": 1_704_067_200,
+        "observed_at": 1_704_067_201,
+        "resolution_source": "official",
+        "resolution_status": "resolved",
+        "timestamp": 1_704_067_200,
+    }]))
+
+    report = validate_store(store)
+
+    assert report["status"] == "ok"
+    assert report["sources"]["market_outcomes"]["row_count"] == 1
+
+
 def test_validate_store_reports_missing_required_column(tmp_path: Path) -> None:
     store = ParquetStore(tmp_path / "data")
     store.append("trades", _trades().drop("market_id"))
