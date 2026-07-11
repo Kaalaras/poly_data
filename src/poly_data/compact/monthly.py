@@ -5,6 +5,7 @@ import logging
 import polars as pl
 
 from poly_data.io.parquet_store import ParquetStore
+from poly_data.io.manifests import iter_manifests, partition_needs_compaction
 
 logger = logging.getLogger(__name__)
 _UNIQUE_KEYS = {
@@ -44,4 +45,22 @@ def compact_all(store: ParquetStore, source: str) -> dict[str, int]:
                     )
             out[f"{year}-{month}"] = n
             logger.info("compacted %s %d-%d → %d rows", source, year, month, n)
+    return out
+
+
+def compact_due(store: ParquetStore, source: str) -> dict[str, int]:
+    """Compact only manifest-backed partitions exceeding file-count or size limits."""
+    out: dict[str, int] = {}
+    for year, month, manifest in iter_manifests(store.root, source):
+        if not partition_needs_compaction(manifest):
+            continue
+        n = store.compact(
+            source,
+            year,
+            month,
+            unique_key=_UNIQUE_KEYS.get(source, "id"),
+        )
+        if n:
+            out[f"{year}-{month}"] = n
+            logger.info("compacted due partition %s %d-%d → %d rows", source, year, month, n)
     return out

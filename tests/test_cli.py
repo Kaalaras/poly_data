@@ -37,6 +37,16 @@ def test_cli_compact_invokes_compact_all(tmp_path: Path, mocker) -> None:
     assert args[1] == "orderFilled"
 
 
+def test_cli_compact_due_invokes_due_compaction(tmp_path: Path, mocker) -> None:
+    fake = mocker.patch("poly_data.cli.compact_due", return_value={})
+    code = main([
+        "compact", "--data-root", str(tmp_path / "data"), "--source", "trades", "--due",
+    ])
+
+    assert code == 0
+    fake.assert_called_once()
+
+
 def test_cli_update_all_runs_pipeline(tmp_path: Path, mocker) -> None:
     mocker.patch("poly_data.cli.update_markets", return_value=0)
     output = tmp_path / "fills.jsonl"

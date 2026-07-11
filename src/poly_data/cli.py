@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from poly_data.benchmark import benchmark_source
-from poly_data.compact.monthly import compact_all
+from poly_data.compact.monthly import compact_all, compact_due
 from poly_data.dimensions import refresh_market_dimensions
 from poly_data.distribute.huggingface import push_snapshot
 from poly_data.ingest.discover import discover_and_fetch
@@ -132,6 +132,7 @@ def _build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("compact", parents=[common],
                        help="compact month partitions")
     c.add_argument("--source", default=None)
+    c.add_argument("--due", action="store_true", help="compact only partitions above thresholds")
 
     h = sub.add_parser("push-hf", parents=[common],
                         help="push snapshot to HuggingFace Hub")
@@ -269,7 +270,7 @@ def main(argv: list[str] | None = None) -> int:
                 "market_refreshes", "trades",
             ]
         for s in sources:
-            compact_all(store, s)
+            (compact_due if ns.due else compact_all)(store, s)
         return 0
 
     if ns.cmd == "push-hf":

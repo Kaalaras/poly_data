@@ -5,7 +5,7 @@ from pathlib import Path
 import polars as pl
 
 from poly_data.io.parquet_store import ParquetStore
-from poly_data.compact.monthly import compact_all
+from poly_data.compact.monthly import compact_all, compact_due
 
 
 def test_compact_all_iterates_every_month(tmp_path: Path,
@@ -51,3 +51,16 @@ def test_compact_all_uses_orderfilled_id_for_trades(tmp_path: Path) -> None:
     df = store.scan("trades").collect()
     assert df.height == 1
     assert df["orderfilled_id"].to_list() == ["of-1"]
+
+
+def test_due_compaction_skips_small_partition_and_compacts_many_runs(tmp_path: Path) -> None:
+    store = ParquetStore(tmp_path / "data")
+    for index in range(17):
+        store.append("orderFilled", pl.DataFrame([{
+            "id": f"run-{index}",
+            "timestamp": 1775001600 + index,
+        }]))
+
+    assert compact_due(store, "orderFilled") == {"2026-4": 17}
+    files = list((tmp_path / "data" / "orderFilled" / "year=2026" / "month=4").glob("*.parquet"))
+    assert [path.name for path in files] == ["month.parquet"]

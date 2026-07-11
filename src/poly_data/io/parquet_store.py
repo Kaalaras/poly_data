@@ -10,6 +10,7 @@ from pathlib import Path
 import polars as pl
 
 from poly_data.io import cursor as _cursor
+from poly_data.io.manifests import manifest_file_paths, write_manifest
 
 
 class ParquetStore:
@@ -53,6 +54,7 @@ class ParquetStore:
             partition_dir.mkdir(parents=True, exist_ok=True)
             file_path = partition_dir / f"run-{epoch_ms}-{uniq}.parquet"
             group.write_parquet(file_path, compression="zstd")
+            write_manifest(self.root, source, int(year), int(month))
             last_path = file_path
         if last_path is None:
             raise ValueError("Empty DataFrame — nothing to append")
@@ -82,6 +84,8 @@ class ParquetStore:
                 os.replace(destination, backup)
                 moved_destination = True
             os.replace(staged_source, destination)
+            for year, month in self._partition_keys(source):
+                write_manifest(self.root, source, year, month)
             if backup.exists():
                 shutil.rmtree(backup)
             return df.height
@@ -109,6 +113,7 @@ class ParquetStore:
         try:
             frame.sink_parquet(temporary, compression="zstd")
             os.replace(temporary, final)
+            write_manifest(self.root, source, year, month)
         except Exception:
             temporary.unlink(missing_ok=True)
             raise
@@ -137,7 +142,7 @@ class ParquetStore:
         if not target.is_dir():
             return pl.DataFrame().lazy()
 
-        files = self.partition_files(source, year=year, month=month)
+        files = self._scan_files(source, year=year, month=month)
         if not files:
             return pl.DataFrame().lazy()
 
@@ -180,7 +185,60 @@ class ParquetStore:
             target = source_dir / f"year={year}"
         else:
             target = source_dir
-        return sorted(target.rglob("*.parquet")) if target.is_dir() else []
+        if not target.is_dir():
+            return []
+        if year is not None and month is not None:
+            return sorted(target.glob("*.parquet"))
+        year_dirs = [target] if year is not None else sorted(target.glob("year=*"))
+        files: list[Path] = []
+        for year_dir in year_dirs:
+            for month_dir in sorted(year_dir.glob("month=*")):
+                files.extend(sorted(month_dir.glob("*.parquet")))
+        return files
+
+    def _partition_keys(
+        self,
+        source: str,
+        year: int | None = None,
+        month: int | None = None,
+    ) -> list[tuple[int, int]]:
+        source_dir = self.root / source
+        if not source_dir.is_dir():
+            return []
+        year_dirs = [source_dir / f"year={year}"] if year is not None else sorted(source_dir.glob("year=*"))
+        keys: list[tuple[int, int]] = []
+        for year_dir in year_dirs:
+            try:
+                parsed_year = int(year_dir.name.split("=", 1)[1])
+            except ValueError:
+                continue
+            month_dirs = [year_dir / f"month={month}"] if month is not None else sorted(year_dir.glob("month=*"))
+            for month_dir in month_dirs:
+                try:
+                    parsed_month = int(month_dir.name.split("=", 1)[1])
+                except ValueError:
+                    continue
+                if month_dir.is_dir():
+                    keys.append((parsed_year, parsed_month))
+        return keys
+
+    def _scan_files(
+        self,
+        source: str,
+        year: int | None = None,
+        month: int | None = None,
+    ) -> list[Path]:
+        files: list[Path] = []
+        for partition_year, partition_month in self._partition_keys(source, year, month):
+            manifest_files = manifest_file_paths(
+                self.root, source, partition_year, partition_month,
+            )
+            files.extend(
+                manifest_files
+                if manifest_files is not None
+                else self.partition_files(source, partition_year, partition_month)
+            )
+        return sorted(files)
 
     def scan_markets_all(self) -> pl.LazyFrame:
         """Scan canonical and discovered markets as one de-duplicated source."""
@@ -269,6 +327,8 @@ class ParquetStore:
             return 0
         existing = sorted(partition_dir.glob("*.parquet"))
         if len(existing) <= 1:
+            if existing:
+                write_manifest(self.root, source, year, month)
             return 0
 
         parts: list[pl.LazyFrame] = []
@@ -298,5 +358,7 @@ class ParquetStore:
                     f.unlink()
                 except FileNotFoundError:
                     pass
+
+        write_manifest(self.root, source, year, month)
 
         return pl.scan_parquet(final).select(pl.len()).collect().item()
